@@ -1,0 +1,51 @@
+name: aayu_track
+description: "AayuTrack - Digital Health Partner App for Remote Patient Monitoring."
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  fl_chart: ^0.40.0  # For Graphs & Charts (Smart Analytics)
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # 🌿 Core UI
+  cupertino_icons: ^1.0.2
+  animations: ^2.0.8
+  lottie: ^3.1.2
+
+  # 💾 Local Storage
+  shared_preferences: ^2.1.1
+
+  # 🔊 Voice & Notifications
+  flutter_tts: ^3.5.2
+  flutter_local_notifications: ^17.1.0
+
+  # 📄 Reports & Sharing
+  pdf: ^3.10.1
+  printing: ^5.10.0
+  path_provider: ^2.0.11
+  intl: ^0.18.0
+  share_plus: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Assets are removed for now. Add them when available.
+    # - assets/animations/health.json
+    # - assets/animations/doctor.json
+    # - assets/animations/success.json
+    # - assets/animations/ai_loading.json
+    # - assets/animations/ai_doctor.json
+    # - assets/animations/profile.json
+    # - assets/animations/settings.json
