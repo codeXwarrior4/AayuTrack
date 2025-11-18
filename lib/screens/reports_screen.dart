@@ -1,9 +1,10 @@
+// lib/screens/reports_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // 👈 for kIsWeb
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:open_filex/open_filex.dart'; // 👈 correct import
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart'; // to get correct file paths
-import 'package:open_file/open_file.dart';
 import '../theme.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -28,13 +29,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _loadReports();
   }
 
-  // Load Reports from Hive
   void _loadReports() {
     final rawList = List<Map<dynamic, dynamic>>.from(
       _box.get('history', defaultValue: []),
     );
+
     setState(() {
       _reports = rawList.map((e) => Map<String, dynamic>.from(e)).toList();
+
       _reports.sort(
         (a, b) =>
             DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])),
@@ -42,27 +44,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
   }
 
-  // Open file using platform-aware approach
   Future<void> _openFile(String path) async {
+    // ❗ Avoid Web crash
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("File viewer not supported on Web")),
+      );
+      return;
+    }
+
     final file = File(path);
+
     if (await file.exists()) {
-      await OpenFile.open(path);
+      await OpenFilex.open(path); // 👈 Correct usage
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('File not found: $path')));
+      ).showSnackBar(SnackBar(content: Text("File not found: $path")));
     }
   }
 
-  // Handle Report Tile
   Widget _buildReportTile(Map<String, dynamic> report) {
     final file = File(report['path']);
     final name = file.path.split('/').last;
+
     final lang = report['lang'] ?? 'en';
     final type = report['type'] ?? 'checkup';
+
     final icon = type == 'checkup'
         ? Icons.analytics_outlined
         : Icons.picture_as_pdf_outlined;
+
     final date = DateFormat.yMMMd().add_jm().format(
       DateTime.parse(report['date']),
     );
@@ -79,32 +91,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
           name,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         ),
-        subtitle: Text('🕒 $date  |  🌐 ${lang.toUpperCase()}'),
+        subtitle: Text("🕒 $date  |  🌐 ${lang.toUpperCase()}"),
         trailing: IconButton(
           icon: const Icon(Icons.open_in_new),
           color: kTeal,
           onPressed: () => _openFile(report['path']),
         ),
         onLongPress: () async {
-          await _deleteReport(report);
+          if (await file.exists()) await file.delete();
+          _reports.remove(report);
+          _box.put('history', _reports);
+          _loadReports();
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Report deleted')));
         },
       ),
     );
-  }
-
-  // Delete report from Hive and filesystem
-  Future<void> _deleteReport(Map<String, dynamic> report) async {
-    final file = File(report['path']);
-    if (await file.exists()) {
-      await file.delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report deleted successfully')),
-      );
-    }
-    setState(() {
-      _reports.remove(report);
-      _box.put('history', _reports);
-    });
   }
 
   @override

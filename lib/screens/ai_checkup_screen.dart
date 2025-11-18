@@ -1,19 +1,12 @@
+// lib/screens/ai_checkup_screen.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/pdf_service.dart';
 import '../theme.dart';
 
-/// ---------------------------------------------------------------------------
-/// 🤖 AI Health Checkup Screen
-/// - Smart language toggle (English, Hindi, Marathi)
-/// - Animated AI assistant
-/// - PDF report generation
-/// - Local history persistence
-/// ---------------------------------------------------------------------------
 class AiCheckupScreen extends StatefulWidget {
   const AiCheckupScreen({super.key});
 
@@ -31,31 +24,20 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
   String? _aiResult;
   bool _isAnalyzing = false;
   bool _showResult = false;
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-  }
 
   @override
   void dispose() {
     _symptomController.dispose();
-    _animController.dispose();
     _tts.stop();
     super.dispose();
   }
 
   Future<void> _analyzeSymptoms() async {
-    final symptom = _symptomController.text.trim();
-    if (symptom.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your symptoms.')),
-      );
+    final input = _symptomController.text.trim();
+    if (input.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Enter symptoms first.")));
       return;
     }
 
@@ -65,10 +47,8 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
       _aiResult = null;
     });
 
-    _animController.repeat();
-
     await Future.delayed(const Duration(seconds: 2));
-    final result = _generateMockDiagnosis(symptom);
+    final result = _generateMockDiagnosis(input);
 
     setState(() {
       _aiResult = result;
@@ -76,10 +56,8 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
       _showResult = true;
     });
 
-    _animController.stop();
-
-    await _speak(result);
-    _saveCheckup(symptom, result);
+    _speak(result);
+    _saveCheckup(input, result);
   }
 
   Future<void> _speak(String text) async {
@@ -90,7 +68,6 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
           ? 'hi-IN'
           : 'mr-IN',
     );
-    await _tts.setSpeechRate(0.9);
     await _tts.speak(text);
   }
 
@@ -101,12 +78,11 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
     history.add({
       'symptom': symptom,
       'result': result,
-      'lang': _selectedLang,
       'time': DateTime.now().toIso8601String(),
+      'lang': _selectedLang,
     });
-    while (history.length > 10) {
-      history.removeAt(0);
-    }
+
+    if (history.length > 10) history.removeAt(0);
     box.put('checkup_history', history);
   }
 
@@ -116,55 +92,48 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
       {
         'name': 'Mild Cold',
         'severity': 1,
-        'advice':
-            'Drink warm fluids and rest. Consult a doctor if fever persists.',
+        'advice': 'Drink warm fluids and take rest.',
       },
       {
         'name': 'Dehydration',
         'severity': 2,
-        'advice':
-            'Increase water intake and eat fruits. Avoid caffeine and alcohol.',
+        'advice': 'Increase water intake.',
       },
       {
-        'name': 'Fatigue or Stress',
+        'name': 'Stress / Fatigue',
         'severity': 0,
-        'advice': 'Take short breaks, get 8 hours of sleep, and stay hydrated.',
+        'advice': 'Sleep well & reduce screen time.',
       },
       {
-        'name': 'Digestive Upset',
-        'severity': 2,
-        'advice': 'Eat light meals, avoid spicy foods, and stay hydrated.',
-      },
-      {
-        'name': 'Allergy',
+        'name': 'Headache',
         'severity': 1,
-        'advice': 'Avoid allergens and consult a doctor if symptoms persist.',
-      },
+        'advice': 'take rest and compress on your forehead',
+      }
     ];
 
     final pick = conditions[random.nextInt(conditions.length)];
-    final name = pick['name'];
-    final advice = pick['advice'];
     final severity = pick['severity'] as int;
-    final emoji = ['🙂', '😐', '😷'][severity.clamp(0, 2)];
-    final levels = ['Low', 'Moderate', 'High'];
+    final emoji = ['🙂', '😐', '😷'][severity];
 
-    return '🩺 Condition: $name $emoji\n\nSeverity: ${levels[severity]}\n\nAdvice: $advice';
+    return "🩺 Condition: ${pick['name']} $emoji\n\n"
+        "Severity: ${['Low', 'Medium', 'High'][severity]}\n\n"
+        "Advice: ${pick['advice']}";
   }
 
   Future<void> _downloadPdf() async {
     if (_aiResult == null) return;
-    final now = DateFormat.yMMMd().add_jm().format(DateTime.now());
+
     await PdfService.generateCheckupReport(
-      patientName: 'User',
-      dateTime: now,
+      patientName: "User",
+      dateTime: DateFormat.yMMMd().add_jm().format(DateTime.now()),
       symptom: _symptomController.text.trim(),
       diagnosis: _aiResult!,
       lang: _selectedLang,
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PDF report saved in Downloads folder')),
-    );
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("PDF saved in Downloads.")));
   }
 
   Widget _langButton(String label, String code) {
@@ -173,9 +142,8 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
       child: ElevatedButton(
         onPressed: () => setState(() => _selectedLang = code),
         style: ElevatedButton.styleFrom(
-          backgroundColor: active ? kTeal : Colors.grey[300],
+          backgroundColor: active ? kTeal : Colors.grey.shade300,
           foregroundColor: active ? Colors.white : Colors.black,
-          padding: const EdgeInsets.symmetric(vertical: 10),
         ),
         child: Text(label),
       ),
@@ -185,82 +153,85 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Health Checkup'), centerTitle: true),
+      appBar: AppBar(title: const Text("AI Health Checkup")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            Center(
-              child: Lottie.asset(
-                'assets/animations/ai_doctor.json',
-                width: 180,
-              ),
-            ),
-            const SizedBox(height: 8),
+            const Icon(
+              Icons.smart_toy,
+              size: 140,
+              color: kTeal,
+            ), // replacing doctor animation
+            const SizedBox(height: 16),
+
             TextField(
               controller: _symptomController,
+              maxLines: 3,
               decoration: InputDecoration(
-                hintText: 'Enter your symptoms...',
+                hintText: "Describe your symptoms...",
                 prefixIcon: const Icon(Icons.healing),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
                 ),
               ),
-              maxLines: 3,
             ),
+
             const SizedBox(height: 16),
+
             Row(
               children: [
-                _langButton('English', 'en'),
+                _langButton("English", "en"),
                 const SizedBox(width: 6),
-                _langButton('हिंदी', 'hi'),
+                _langButton("हिंदी", "hi"),
                 const SizedBox(width: 6),
-                _langButton('मराठी', 'mr'),
+                _langButton("मराठी", "mr"),
               ],
             ),
+
             const SizedBox(height: 16),
+
             ElevatedButton.icon(
-              icon: const Icon(Icons.medical_information),
-              label: const Text('Analyze Symptoms'),
+              icon: const Icon(Icons.medical_services),
+              label: const Text("Analyze Symptoms"),
               onPressed: _isAnalyzing ? null : _analyzeSymptoms,
             ),
+
             const SizedBox(height: 20),
+
             if (_isAnalyzing)
-              Center(
-                child: Lottie.asset(
-                  'assets/animations/ai_loading.json',
-                  width: 150,
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(color: kTeal),
                 ),
               ),
-            if (_showResult && _aiResult != null) ...[
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                child: Card(
-                  key: ValueKey(_aiResult),
-                  color: Theme.of(context).colorScheme.surface,
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      _aiResult!,
-                      style: const TextStyle(fontSize: 16),
+
+            if (_showResult && _aiResult != null)
+              Column(
+                children: [
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _aiResult!,
+                        style: const TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text("Download Report"),
+                    onPressed: _downloadPdf,
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('Download Report'),
-                onPressed: _downloadPdf,
-              ),
-            ],
           ],
         ),
       ),

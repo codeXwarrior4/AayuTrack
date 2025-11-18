@@ -1,151 +1,201 @@
-import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:lottie/lottie.dart';
-import 'package:animations/animations.dart';
+// lib/main.dart
 
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Localization + Theme
+import 'localization.dart';
 import 'theme.dart';
+
+// Services
 import 'services/notification_service.dart';
 
 // Screens
+import 'screens/landing_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/language_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/onboarding_flow.dart';
 import 'screens/ai_checkup_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/report_analytics_screen.dart'; // New Analytics Page
+import 'screens/reports_screen.dart';
+import 'screens/emergency_screen.dart';
+import 'screens/telemedicine_screen.dart';
 
-/// ---------------------------------------------------------------------------
-/// 🩺 ENTRY POINT — Initialize Hive + Notifications + App
-/// ---------------------------------------------------------------------------
+import 'widgets/app_drawer.dart';
+
+// ---------------------------------------------------------------------------
+// MAIN
+// ---------------------------------------------------------------------------
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Hive.initFlutter();
   await Hive.openBox('aayutrack_box');
+  await Hive.openBox('aayutrack_reminders');
+  await Hive.openBox('aayutrack_reports');
+
   await NotificationService.init();
 
   runApp(const RootApp());
 }
 
-/// ---------------------------------------------------------------------------
-/// 🌿 ROOT APP — handles theme switching globally
-/// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// ROOT APP
+// ---------------------------------------------------------------------------
 class RootApp extends StatefulWidget {
   const RootApp({super.key});
-
   @override
   State<RootApp> createState() => _RootAppState();
 }
 
 class _RootAppState extends State<RootApp> {
-  bool _darkMode = Hive.box(
-    'aayutrack_box',
-  ).get('darkMode', defaultValue: false);
-
-  void _toggleTheme(bool dark) {
-    setState(() => _darkMode = dark);
-    Hive.box('aayutrack_box').put('darkMode', dark);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MyAppTheme(
-      toggleTheme: _toggleTheme,
-      child: MaterialApp(
-        title: 'AayuTrack Pro',
-        debugShowCheckedModeBanner: false,
-        theme: buildAayuTrackLightTheme(),
-        darkTheme: buildAayuTrackDarkTheme(),
-        themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
-        home: const SplashScreen(),
-      ),
-    );
-  }
-}
-
-/// ---------------------------------------------------------------------------
-/// 💫 SPLASH SCREEN — Animated Lottie intro
-/// ---------------------------------------------------------------------------
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  final box = Hive.box('aayutrack_box');
+  bool _darkMode = false;
+  Locale? _locale;
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..forward();
-
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScaffold()),
-      );
-    });
+    _loadPrefs();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  Future<void> _loadPrefs() async {
+    _darkMode = box.get('darkMode', defaultValue: false);
 
-  Widget _buildLogo() {
-    try {
-      return Lottie.asset(
-        'assets/animations/health.json',
-        width: 220,
-        repeat: true,
-        controller: _controller,
-      );
-    } catch (_) {
-      return const Icon(Icons.favorite, size: 120, color: kTeal);
+    final sp = await SharedPreferences.getInstance();
+    final code = sp.getString('locale_code') ?? box.get('locale_code');
+
+    if (code != null && code.isNotEmpty) {
+      _locale = Locale(code);
     }
+
+    setState(() => _ready = true);
+  }
+
+  Future<void> _changeLocale(Locale? locale) async {
+    _locale = locale;
+    final sp = await SharedPreferences.getInstance();
+
+    if (locale == null) {
+      await sp.remove('locale_code');
+      box.delete('locale_code');
+    } else {
+      await sp.setString('locale_code', locale.languageCode);
+      box.put('locale_code', locale.languageCode);
+    }
+
+    setState(() {});
+  }
+
+  void _toggleTheme(bool dark) {
+    _darkMode = dark;
+    box.put('darkMode', dark);
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildLogo(),
-            const SizedBox(height: 20),
-            Text(
-              'AayuTrack',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: kTeal,
-                fontWeight: FontWeight.bold,
-                fontSize: 28,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your Digital Health Partner',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 40),
-            const CircularProgressIndicator(color: kTeal, strokeWidth: 2.4),
-          ],
-        ),
+    if (!_ready) {
+      return const MaterialApp(
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
+    return MyAppTheme(
+      toggleTheme: _toggleTheme,
+      child: MaterialApp(
+        title: "AayuTrack",
+        debugShowCheckedModeBanner: false,
+        theme: buildAayuTrackLightTheme(),
+        darkTheme: buildAayuTrackDarkTheme(),
+        themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
+        locale: _locale,
+        supportedLocales: const [
+          Locale('en'),
+          Locale('hi'),
+          Locale('mr'),
+          Locale('kn'),
+        ],
+        localizationsDelegates: const [
+          AppLocalizationsDelegate(),
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: const RootDecider(),
+        routes: {
+          '/landing': (_) => const LandingScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/signup': (_) => const RegisterScreen(),
+          '/onboarding': (_) => const OnboardingFlow(),
+          '/dashboard': (_) => const MainScaffold(),
+          '/reminders': (_) => const RemindersScreen(),
+          '/ai': (_) => const AiCheckupScreen(),
+          '/profile': (_) => const ProfileScreen(),
+          '/settings': (_) => const SettingsScreen(),
+          '/reports': (_) => const ReportsScreen(),
+          '/emergency': (_) => const EmergencyScreen(),
+          '/telemedicine': (_) => const TelemedicineScreen(),
+          '/language': (_) => LanguageScreen(onChangedLocale: _changeLocale),
+        },
       ),
     );
   }
 }
 
-/// ---------------------------------------------------------------------------
-/// 🧭 MAIN SCAFFOLD — Bottom Navigation with Transitions
-/// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// FIRST SCREEN DECIDER
+// ---------------------------------------------------------------------------
+class RootDecider extends StatefulWidget {
+  const RootDecider({super.key});
+  @override
+  State<RootDecider> createState() => _RootDeciderState();
+}
+
+class _RootDeciderState extends State<RootDecider> {
+  final box = Hive.box('aayutrack_box');
+  bool _loading = true;
+  bool _loggedIn = false;
+  bool _onboarded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    setState(() {
+      _loggedIn = box.get('loggedIn', defaultValue: false);
+      _onboarded = box.get('onboarded', defaultValue: false);
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!_loggedIn && !_onboarded) return const LandingScreen();
+    if (!_loggedIn) return const LoginScreen();
+    if (!_onboarded) return const OnboardingFlow();
+    return const MainScaffold();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MainScaffold (paste into main.dart, replace older MainScaffold)
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
   @override
@@ -153,99 +203,86 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
-  int _currentIndex = 0;
+  int _index = 0;
 
-  final List<Widget> _pages = const [
+  // pages are widgets (not full Scaffolds)
+  final pages = const [
     DashboardScreen(),
     AiCheckupScreen(),
     RemindersScreen(),
-    ReportAnalyticsScreen(), // New Analytics page
     ProfileScreen(),
     SettingsScreen(),
   ];
 
-  final List<String> _titles = const [
+  final titles = const [
     'Dashboard',
     'AI Checkup',
     'Reminders',
-    'Analytics', // New page label
     'Profile',
     'Settings',
   ];
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
+      // top-level appBar (shows title and left menu)
       appBar: AppBar(
-        title: Text(
-          _titles[_currentIndex],
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(titles[_index]),
         centerTitle: true,
-        backgroundColor: colorScheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 1.5,
-      ),
-      body: PageTransitionSwitcher(
-        duration: const Duration(milliseconds: 350),
-        transitionBuilder: (child, animation, secondaryAnimation) =>
-            FadeScaleTransition(animation: animation, child: child),
-        child: _pages[_currentIndex],
-      ),
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          indicatorColor: colorScheme.secondary.withOpacity(0.4),
-          labelTextStyle: MaterialStateProperty.all(
-            TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface,
-            ),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        child: NavigationBar(
-          backgroundColor: Theme.of(context).cardColor,
-          elevation: 4,
-          selectedIndex: _currentIndex,
-          animationDuration: const Duration(milliseconds: 300),
-          onDestinationSelected: (index) =>
-              setState(() => _currentIndex = index),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.health_and_safety_outlined),
-              selectedIcon: Icon(Icons.health_and_safety),
-              label: 'AI',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.alarm_outlined),
-              selectedIcon: Icon(Icons.alarm),
-              label: 'Reminders',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.analytics_outlined), // Analytics Icon
-              selectedIcon: Icon(Icons.analytics),
-              label: 'Analytics', // Label for analytics
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
-          ],
-        ),
+        actions: [
+          // optional right-side quick action (keeps parity with your earlier screenshot)
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {},
+          ),
+        ],
+      ),
+
+      // ONE top-level drawer used by entire app
+      drawer: const AppDrawer(),
+
+      // body shows the selected page (widgets inside will not have their own AppBar/Drawer)
+      body: SafeArea(
+        child: pages[_index],
+      ),
+
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined), label: 'Home'),
+          NavigationDestination(
+              icon: Icon(Icons.health_and_safety_outlined), label: 'AI'),
+          NavigationDestination(
+              icon: Icon(Icons.alarm_outlined), label: 'Reminders'),
+          NavigationDestination(
+              icon: Icon(Icons.person_outline), label: 'Profile'),
+          NavigationDestination(
+              icon: Icon(Icons.settings_outlined), label: 'Settings'),
+        ],
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// THEME WRAPPER
+// ---------------------------------------------------------------------------
+class MyAppTheme extends InheritedWidget {
+  final void Function(bool dark) toggleTheme;
+  const MyAppTheme(
+      {super.key, required this.toggleTheme, required super.child});
+
+  static MyAppTheme? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MyAppTheme>();
+
+  @override
+  bool updateShouldNotify(covariant InheritedWidget oldWidget) => false;
 }

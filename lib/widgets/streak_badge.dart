@@ -1,6 +1,5 @@
 // lib/widgets/streak_badge.dart
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
 class StreakBadge extends StatelessWidget {
   final int days;
@@ -13,17 +12,19 @@ class StreakBadge extends StatelessWidget {
     final display = days <= 0
         ? 'No streak'
         : '$days day${days == 1 ? '' : 's'}';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14),
         child: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 72,
               height: 72,
-              child: Lottie.asset(
-                'assets/animations/success.json',
-                repeat: true,
+              child: Icon(
+                Icons.local_fire_department,
+                size: 60,
+                color: Colors.orange,
               ),
             ),
             const SizedBox(width: 12),
@@ -53,7 +54,6 @@ class StreakBadge extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                // encourage action: open reminders
                 Navigator.of(context).pushNamed('/reminders');
               },
               child: const Text('View'),

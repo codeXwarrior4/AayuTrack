@@ -1,133 +1,189 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import '../theme.dart';
+import 'language_screen.dart';
+import '../main.dart'; // needed for MyAppTheme
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final box = Hive.box('aayutrack_box');
-  bool _darkMode = false;
-  bool _notificationsEnabled = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _darkMode = box.get('darkMode', defaultValue: false);
-    _notificationsEnabled = box.get('notifications', defaultValue: true);
-  }
-
-  void _toggleDarkMode(bool value) async {
-    setState(() => _darkMode = value);
-    await box.put('darkMode', value);
-    MyAppTheme.of(context)?.toggleTheme(value);
-  }
-
-  void _toggleNotifications(bool value) async {
-    setState(() => _notificationsEnabled = value);
-    await box.put('notifications', value);
-  }
+  String _currentLanguageName = "English";
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const SizedBox(height: 24),
-          Center(child: Icon(Icons.settings, size: 100, color: kTeal)),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              "App Preferences",
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.primary,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Page Title
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10, top: 5),
+              child: Text(
+                "Settings",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
 
-          // 🌙 Dark Mode
-          SwitchListTile(
-            title: const Text("Dark Mode"),
-            subtitle: const Text("Switch between light and dark mint themes"),
-            value: _darkMode,
-            activeColor: kTeal,
-            onChanged: _toggleDarkMode,
-          ),
-          const Divider(),
-
-          // 🔔 Notifications
-          SwitchListTile(
-            title: const Text("Reminders & Notifications"),
-            subtitle: const Text("Enable reminders for medicine and hydration"),
-            value: _notificationsEnabled,
-            activeColor: kTeal,
-            onChanged: _toggleNotifications,
-          ),
-          const Divider(),
-
-          // ℹ️ Info
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: kTeal),
-            title: const Text("About AayuTrack"),
-            subtitle: const Text(
-              "Monitor your health, hydration, steps, and reminders with AI insights.",
+            // 🌐 LANGUAGE CARD
+            _buildSettingsCard(
+              icon: Icons.language,
+              iconColor: Colors.teal,
+              title: "Language",
+              subtitle: _currentLanguageName,
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LanguageScreen(
+                      onChangedLocale: (Locale newLocale) {
+                        setState(() {
+                          _currentLanguageName =
+                              _mapLanguageCode(newLocale.languageCode);
+                        });
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.email_outlined, color: kTeal),
-            title: const Text("Contact Support"),
-            subtitle: const Text("codexwarriors@healthtrack.app"),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Support email: codexwarriors@healthtrack.app"),
-                ),
-              );
-            },
-          ),
 
-          const SizedBox(height: 40),
-          Center(
-            child: Column(
-              children: [
-                const Text(
-                  "Version 1.0.0 (Hackathon Edition)",
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "© 2025 CodeX Warriors",
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
+            // 🌙 DARK MODE TOGGLE (NEW)
+            _buildSettingsCard(
+              icon: Icons.dark_mode_outlined,
+              iconColor: Colors.deepPurple,
+              title: "Dark Mode",
+              subtitle: isDark ? "Enabled" : "Disabled",
+              onTap: () {
+                final theme = MyAppTheme.of(context);
+                if (theme != null) {
+                  theme.toggleTheme(!isDark);
+                }
+                setState(() {});
+              },
             ),
-          ),
-        ],
+
+            // 🔔 Notifications
+            _buildSettingsCard(
+              icon: Icons.notifications_active_outlined,
+              iconColor: Colors.orange.shade600,
+              title: "Notifications",
+              subtitle: "Manage alerts & permissions",
+              onTap: () {},
+            ),
+
+            // 🔐 Privacy
+            _buildSettingsCard(
+              icon: Icons.lock_outline,
+              iconColor: Colors.blueGrey,
+              title: "Privacy",
+              subtitle: "Data and permissions",
+              onTap: () {},
+            ),
+
+            const SizedBox(height: 18),
+
+            // About Section
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                "About",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+
+            _buildSettingsCard(
+              icon: Icons.info_outline,
+              iconColor: Colors.indigo,
+              title: "About AayuTrack",
+              subtitle: "Version 1.0.0",
+              onTap: () {},
+            ),
+          ],
+        ),
       ),
     );
   }
-}
 
-/// 🩵 Bridge widget for global theme toggling
-class MyAppTheme extends InheritedWidget {
-  final void Function(bool) toggleTheme;
-  const MyAppTheme({
-    super.key,
-    required this.toggleTheme,
-    required super.child,
-  });
+  // Helper to build clean setting card
+  Widget _buildSettingsCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: iconColor.withOpacity(0.12),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    if (subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          subtitle!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 18, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-  static MyAppTheme? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<MyAppTheme>();
-
-  @override
-  bool updateShouldNotify(covariant InheritedWidget oldWidget) => false;
+  // map locale code to user-friendly name
+  String _mapLanguageCode(String code) {
+    switch (code) {
+      case 'hi':
+        return "Hindi";
+      case 'mr':
+        return "Marathi";
+      case 'kn':
+        return "Kannada";
+      default:
+        return "English";
+    }
+  }
 }

@@ -1,89 +1,71 @@
 // lib/widgets/stat_card.dart
 import 'package:flutter/material.dart';
-import 'package:animations/animations.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
     required this.title,
     required this.value,
     required this.icon,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return OpenContainer(
-      closedElevation: 0,
-      openElevation: 2,
-      closedColor: Colors.transparent,
-      openColor: Colors.white,
-      transitionDuration: const Duration(milliseconds: 450),
-      closedBuilder: (context, open) {
-        return Card(
-          child: InkWell(
-            onTap: open,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 100,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon,
+                  size: 28, color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        icon,
-                        size: 26,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      const Spacer(),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 6),
+                  Text(value,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
-          ),
-        );
-      },
-      openBuilder: (context, close) {
-        // simple expanded view for the stat
-        return Scaffold(
-          appBar: AppBar(title: Text(title)),
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+            if (onTap != null)
+              const Icon(Icons.add_circle_outline,
+                  color: Colors.grey, size: 24),
+          ],
+        ),
+      ),
     );
   }
 }

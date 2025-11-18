@@ -1,0 +1,42 @@
+{
+  "@@locale": "en",
+
+  "appName": "AayuTrack",
+  "trustedUsers": "Trusted by thousands of users",
+  "quote": "Your health is your real wealth.",
+  "getStarted": "Get Started",
+  "login": "Login",
+  "register": "Register",
+
+  "trackProgress": "Track Your Progress",
+  "trackProgressDesc": "Monitor daily tasks and visualize your wellness journey.",
+  "aiRecommendations": "AI Recommendations",
+  "aiRecommendationsDesc": "Personalized suggestions from your AI wellness guide.",
+  "gamifiedExperience": "Gamified Experience",
+  "gamifiedExperienceDesc": "Achieve health goals through fun challenges and rewards.",
+
+  "hello": "Hello,",
+  "tagline": "Stay consistent • Private • Offline",
+
+  "stepsLabel": "Steps",
+  "heartRateLabel": "Heart Rate",
+  "hydrationLabel": "Hydration",
+
+  "medicationTitle": "Medication",
+  "manageLabel": "Manage",
+  "noMedicineLogged": "No medicines logged yet.",
+  "atLabel": "At",
+
+  "medicationStreakTitle": "Medication Streak",
+  "stepsStreakTitle": "Steps Streak",
+  "hydrationStreakTitle": "Hydration Streak",
+  "viewLabel": "View",
+
+  "addStepsButton": "Add 1000 steps",
+  "addHydrationButton": "Add 250 ml",
+
+  "remindNow": "Remind Now",
+  "exportReport": "Export Report",
+
+  "healthTips": "💧 Drink a glass of water every morning.\n🏃‍♂️ Maintain a 30-minute daily walk routine.\n💊 Take medicines on schedule."
+}

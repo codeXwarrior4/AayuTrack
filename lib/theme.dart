@@ -1,7 +1,6 @@
 // lib/theme.dart
 import 'package:flutter/material.dart';
 
-// 🌿 Brand Palette
 const kTeal = Color(0xFF009688);
 const kMint = Color(0xFF80CBC4);
 const kBgLight = Color(0xFFF7F9F9);
@@ -13,7 +12,6 @@ const kShadow = Color(0x1A000000);
 /// 🌞 LIGHT THEME
 ThemeData buildAayuTrackLightTheme() {
   final base = ThemeData.light();
-
   return base.copyWith(
     scaffoldBackgroundColor: kBgLight,
     primaryColor: kTeal,
@@ -23,6 +21,17 @@ ThemeData buildAayuTrackLightTheme() {
       surface: kCardLight,
       brightness: Brightness.light,
     ),
+
+    /// 🔧 FIX: CardThemeData instead of CardTheme
+    cardTheme: const CardThemeData(
+      color: kCardLight,
+      elevation: 3,
+      shadowColor: kShadow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    ),
+
     appBarTheme: const AppBarTheme(
       backgroundColor: kTeal,
       elevation: 0,
@@ -33,16 +42,6 @@ ThemeData buildAayuTrackLightTheme() {
         fontSize: 20,
       ),
       iconTheme: IconThemeData(color: Colors.white),
-    ),
-
-    // ✅ Fixed for Flutter 3.24+
-    cardTheme: const CardThemeData(
-      color: kCardLight,
-      elevation: 3,
-      shadowColor: kShadow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
     ),
 
     textTheme: base.textTheme.copyWith(
@@ -84,7 +83,6 @@ ThemeData buildAayuTrackLightTheme() {
 /// 🌙 DARK THEME
 ThemeData buildAayuTrackDarkTheme() {
   final base = ThemeData.dark();
-
   return base.copyWith(
     scaffoldBackgroundColor: kBgDark,
     primaryColor: kMint,
@@ -94,6 +92,16 @@ ThemeData buildAayuTrackDarkTheme() {
       surface: kCardDark,
       brightness: Brightness.dark,
     ),
+
+    /// 🔧 FIX: CardThemeData instead of CardTheme
+    cardTheme: const CardThemeData(
+      color: kCardDark,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    ),
+
     appBarTheme: const AppBarTheme(
       backgroundColor: kMint,
       elevation: 0,
@@ -104,15 +112,6 @@ ThemeData buildAayuTrackDarkTheme() {
         fontSize: 20,
       ),
       iconTheme: IconThemeData(color: Colors.black87),
-    ),
-
-    // ✅ Fixed for Flutter 3.24+
-    cardTheme: const CardThemeData(
-      color: kCardDark,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
     ),
 
     textTheme: base.textTheme.copyWith(

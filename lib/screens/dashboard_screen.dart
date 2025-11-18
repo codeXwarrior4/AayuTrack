@@ -11,17 +11,8 @@ import '../widgets/stat_card.dart';
 import '../widgets/streak_badge.dart';
 import '../theme.dart';
 
-/// ---------------------------------------------------------------------------
-/// 🏥 AayuTrack Dashboard
-/// Refined, fast, and hackathon-ready.
-/// - Uses Hive for offline storage
-/// - Smart reminders (TTS + local notification)
-/// - PDF report generator
-/// - Adaptive for dark/light theme
-/// ---------------------------------------------------------------------------
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
-
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -34,9 +25,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Map<String, dynamic> profile = {};
   List<Map<String, dynamic>> _medLogs = [];
-  int _streakDays = 0;
+  int _streakMedication = 0;
+  int _streakSteps = 0;
+  int _streakHydration = 0;
 
-  // sample realtime metrics (replace later with sensors or APIs)
   int _steps = 2500;
   int _heartRate = 78;
   int _hydration = 1300;
@@ -54,6 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _initialize() async {
+    // Ensure the box is opened in main; here we just read it
     _box = Hive.box('aayutrack_box');
     await NotificationService.init();
     await _loadData();
@@ -68,29 +61,21 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 150));
-
+    await Future.delayed(const Duration(milliseconds: 120));
     profile = Map<String, dynamic>.from(_box.get('profile', defaultValue: {}));
     final rawLogs = List<Map<dynamic, dynamic>>.from(
       _box.get('med_logs', defaultValue: []),
     );
     _medLogs = rawLogs.map((e) => Map<String, dynamic>.from(e)).toList();
 
-    // Compute streak days
-    final uniqueDates = <String>{};
-    for (final m in _medLogs) {
-      if (m['taken'] == true) {
-        final dateIso = (m['date'] ?? DateTime.now().toIso8601String());
-        uniqueDates.add(dateIso.toString().split('T').first);
-      }
-    }
-    _streakDays = uniqueDates.length;
+    _streakMedication = (_box.get('streak_med', defaultValue: 0) as int);
+    _streakSteps = (_box.get('streak_steps', defaultValue: 0) as int);
+    _streakHydration = (_box.get('streak_hydration', defaultValue: 0) as int);
 
     _animController.forward();
     setState(() => _loading = false);
   }
 
-  // 🔔 Voice + Notification Reminder
   Future<void> _remindNow() async {
     final name = profile['name'] ?? 'User';
     final msg =
@@ -105,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Voice reminder & notification sent!')),
+          const SnackBar(content: Text('Voice reminder sent!')),
         );
       }
     } catch (e) {
@@ -113,7 +98,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  // 📄 Quick Report
   Future<void> _generateQuickReport() async {
     showDialog(
       context: context,
@@ -124,7 +108,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         content: Center(child: CircularProgressIndicator()),
       ),
     );
-
     try {
       final name = profile['name'] ?? 'User';
       final date = DateFormat.yMMMd().add_jm().format(DateTime.now());
@@ -133,40 +116,63 @@ class _DashboardScreenState extends State<DashboardScreen>
         dateTime: date,
         symptom: 'Daily health stats summary',
         diagnosis:
-            'Steps: $_steps • Heart Rate: $_heartRate bpm • Water: $_hydration ml\n\nKeep up your good health routine!',
+            'Steps: $_steps • Heart Rate: $_heartRate bpm • Water: $_hydration ml\n\nStay consistent!',
         lang: 'en',
       );
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF report generated successfully!')),
+          const SnackBar(content: Text('PDF generated')),
         );
       }
     } catch (e) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to create report: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Report failed: $e')));
+      }
     }
   }
 
-  // 🔄 Mark medicine taken
-  Future<void> _toggleMed(Map<String, dynamic> med, bool value) async {
-    med['taken'] = value;
+  Future<void> _markSteps(int amount) async {
+    final todayKey = 'last_steps_date';
+    final last = _box.get(todayKey);
+    final todayStr = DateTime.now().toIso8601String().split('T').first;
+    if (last != todayStr && amount >= 1000) {
+      _streakSteps++;
+      await _box.put('streak_steps', _streakSteps);
+      await _box.put(todayKey, todayStr);
+    }
+    _steps += amount;
+    await _loadData();
+  }
+
+  Future<void> _markHydration(int amountMl) async {
+    final todayKey = 'last_hydration_date';
+    final last = _box.get(todayKey);
+    final todayStr = DateTime.now().toIso8601String().split('T').first;
+    if (last != todayStr && amountMl >= 200) {
+      _streakHydration++;
+      await _box.put('streak_hydration', _streakHydration);
+      await _box.put(todayKey, todayStr);
+    }
+    _hydration += amountMl;
+    await _loadData();
+  }
+
+  Future<void> _toggleMed(Map<String, dynamic> m, bool value) async {
+    m['taken'] = value;
     final logs = List<Map<dynamic, dynamic>>.from(
-      _box.get('med_logs', defaultValue: []),
-    );
-    final idx = logs.indexWhere((e) => e['id'] == med['id']);
+        _box.get('med_logs', defaultValue: []));
+    final idx = logs.indexWhere((e) => e['id'] == m['id']);
     if (idx >= 0) {
-      logs[idx] = med;
+      logs[idx] = m;
     } else {
-      logs.add(med);
+      logs.add(m);
     }
     await _box.put('med_logs', logs);
     await _loadData();
   }
-
-  // ---------------------------- UI WIDGETS ----------------------------
 
   Widget _buildHeader() {
     final name = profile['name'] ?? 'Welcome';
@@ -178,13 +184,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: const Icon(Icons.local_hospital, color: kTeal, size: 38),
         ),
@@ -194,22 +193,16 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Hello,', style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 4),
-              Text(
-                name,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const SizedBox(height: 2),
+              Text(name,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
                 'Stay consistent • Private • Offline',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                  letterSpacing: 0.2,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -217,45 +210,85 @@ class _DashboardScreenState extends State<DashboardScreen>
         IconButton(
           icon: const Icon(Icons.edit_note),
           onPressed: () => Navigator.pushNamed(context, '/profile'),
-          tooltip: 'Edit Profile',
         ),
       ],
     );
   }
 
-  Widget _buildStats() => FadeTransition(
-    opacity: CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
-    child: Row(
-      children: [
-        Expanded(
-          child: StatCard(
-            title: 'Steps',
-            value: '$_steps',
-            icon: Icons.directions_walk,
-          ),
+  /// Responsive stats row:
+  /// - On narrow screens: horizontal scrollable row
+  /// - On normal/wide: three cards expanded in a row
+  Widget _buildStats() {
+    // fixed height for the stat area to avoid vertical overflow from child internals
+    const double statsHeight = 120;
+
+    final stats = [
+      _StatBox(
+        child: StatCard(
+          title: 'Steps',
+          value: '$_steps',
+          icon: Icons.directions_walk,
         ),
-        Expanded(
-          child: StatCard(
-            title: 'Heart Rate',
-            value: '$_heartRate bpm',
-            icon: Icons.favorite,
-          ),
+      ),
+      _StatBox(
+        child: StatCard(
+          title: 'Heart Rate',
+          value: '$_heartRate bpm',
+          icon: Icons.favorite,
         ),
-        Expanded(
-          child: StatCard(
-            title: 'Hydration',
-            value: '$_hydration ml',
-            icon: Icons.local_drink,
-          ),
+      ),
+      _StatBox(
+        child: StatCard(
+          title: 'Hydration',
+          value: '$_hydration ml',
+          icon: Icons.local_drink,
         ),
-      ],
-    ),
-  );
+      ),
+    ];
+
+    return FadeTransition(
+      opacity:
+          CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+      child: LayoutBuilder(builder: (ctx, constraints) {
+        // if screen is narrow (e.g. phones with small width) -> use horizontal scroll
+        if (constraints.maxWidth < 380) {
+          return SizedBox(
+            height: statsHeight,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: stats.length,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                return SizedBox(
+                  width: (constraints.maxWidth * 0.7).clamp(110.0, 220.0),
+                  child: stats[i],
+                );
+              },
+            ),
+          );
+        }
+
+        // normal/wider screens: show three in a row with equal width
+        return SizedBox(
+          height: statsHeight,
+          child: Row(
+            children: [
+              Expanded(child: stats[0]),
+              const SizedBox(width: 12),
+              Expanded(child: stats[1]),
+              const SizedBox(width: 12),
+              Expanded(child: stats[2]),
+            ],
+          ),
+        );
+      }),
+    );
+  }
 
   Widget _buildMedications() {
     final meds = _medLogs.reversed.take(4).toList();
     return Card(
-      margin: const EdgeInsets.only(top: 10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -263,12 +296,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             Row(
               children: [
-                const Icon(Icons.medication, color: kTeal, size: 22),
+                const Icon(Icons.medication, color: kTeal),
                 const SizedBox(width: 8),
-                Text(
-                  'Medication',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text('Medication',
+                    style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/reminders'),
@@ -280,79 +311,62 @@ class _DashboardScreenState extends State<DashboardScreen>
             const Divider(),
             if (meds.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.symmetric(vertical: 8.0),
                 child: Text('No medicines logged yet.'),
               )
             else
-              ...meds.map((m) {
-                final taken = m['taken'] == true;
-                return ListTile(
+              ...meds.map(
+                (m) => ListTile(
                   dense: true,
-                  leading: Icon(
-                    taken ? Icons.check_circle : Icons.circle_outlined,
-                    color: taken ? kTeal : Colors.grey,
-                  ),
                   title: Text(m['name'] ?? 'Medicine'),
                   subtitle: Text('At ${m['time'] ?? '--'}'),
                   trailing: Checkbox(
-                    value: taken,
+                    value: m['taken'] == true,
                     onChanged: (v) => _toggleMed(m, v ?? false),
                   ),
-                );
-              }),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActions() => Row(
-    children: [
-      Expanded(
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.notifications_active),
-          label: const Text('Remind Now'),
-          onPressed: _remindNow,
-        ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.picture_as_pdf),
-          label: const Text('Export Report'),
-          onPressed: _generateQuickReport,
-        ),
-      ),
-    ],
-  );
-
-  Widget _buildHealthTips() => Card(
-    margin: const EdgeInsets.only(top: 20),
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.lightbulb, color: kTeal, size: 28),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '💧 Drink a glass of water every morning.\n'
-              '🏃‍♂️ Maintain a 30-minute daily walk routine.\n'
-              '💊 Take medicines on schedule.',
-              style: TextStyle(
-                color: Colors.grey[800],
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
+  Widget _buildActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.notifications_active),
+            label: const Text('Remind Now'),
+            onPressed: _remindNow,
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.picture_as_pdf),
+            label: const Text('Export Report'),
+            onPressed: _generateQuickReport,
+          ),
+        ),
+      ],
+    );
+  }
 
-  // ---------------------------- BUILD ----------------------------
+  Widget _buildHealthTips() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Text(
+          '💧 Drink a glass of water every morning.\n'
+          '🏃‍♂️ Maintain a 30-minute walk routine.\n'
+          '💊 Take medicines on time.',
+          style: const TextStyle(fontSize: 14),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -366,25 +380,90 @@ class _DashboardScreenState extends State<DashboardScreen>
           _buildHeader(),
           const SizedBox(height: 14),
           _buildStats(),
-          const SizedBox(height: 12),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            child: _buildStreakCard(),
-            transitionBuilder: (child, anim) => FadeTransition(
-              opacity: anim,
-              child: ScaleTransition(scale: anim, child: child),
+          const SizedBox(height: 14),
+          // Streak Cards
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Medication Streak\n$_streakMedication days',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/reminders'),
+                    child: const Text('View'),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Steps Streak\n$_streakSteps days',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => _markSteps(1000),
+                    child: const Text('Add 1000 steps'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Hydration Streak\n$_streakHydration days',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => _markHydration(250),
+                    child: const Text('Add 250 ml'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           _buildMedications(),
           const SizedBox(height: 14),
           _buildActions(),
+          const SizedBox(height: 14),
           _buildHealthTips(),
-          const SizedBox(height: 60),
+          const SizedBox(height: 80),
         ],
       ),
     );
   }
+}
 
-  Widget _buildStreakCard() => StreakBadge(days: _streakDays);
+/// Small helper that constrains stat card height so children cannot overflow vertically.
+class _StatBox extends StatelessWidget {
+  final Widget child;
+  const _StatBox({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 120,
+      child: child,
+    );
+  }
 }
