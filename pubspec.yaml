@@ -6,52 +6,39 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.3.0 <5.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-
+  
   cupertino_icons: ^1.0.6
-
-  # PDF + Sharing
+  flutter_markdown_plus: ^0.1.0
   pdf: ^3.10.7
   printing: ^5.13.1
-  share_plus: ^7.2.1
+  share_plus: ^12.0.1
   open_filex: ^4.5.0
-
-  # Animations
   animations: ^2.0.11
-
-  # Localization
+  
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
-
-  # Local preferences
   shared_preferences: ^2.2.2
-
-  # Notifications
-  flutter_local_notifications: ^17.2.4
-
-  # Text to speech
-  flutter_tts: ^3.8.5
-
-  # File paths
+  flutter_local_notifications: ^19.5.0
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.0.0
   path_provider: ^2.1.5
-
-  # Hive (local storage)
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-
-  # Lottie animations
-  lottie: ^2.7.0
+  lottie: ^3.3.2
+  firebase_core: ^4.2.1
+  google_generative_ai: ^0.4.7
 
 dev_dependencies:
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-
-  lints: ^3.0.0
+  lints: ^6.0.0
 
 flutter:
   uses-material-design: true
