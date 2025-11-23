@@ -66,18 +66,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 14),
                       Text(
                         'Welcome Back!',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: teal,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: teal,
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Login to continue your health journey',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[700],
-                        ),
+                              color: Colors.grey[700],
+                            ),
                       ),
                       const SizedBox(height: 18),
                       Form(
@@ -90,10 +90,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               icon: Icons.email_outlined,
                               keyboard: TextInputType.emailAddress,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty)
+                                if (v == null || v.trim().isEmpty) {
                                   return 'Required';
-                                if (!v.contains('@'))
+                                }
+                                if (!v.contains('@')) {
                                   return 'Enter valid email';
+                                }
                                 return null;
                               },
                             ),
@@ -113,8 +115,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     setState(() => _obscure = !_obscure),
                               ),
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty)
+                                if (v == null || v.trim().isEmpty) {
                                   return 'Required';
+                                }
                                 if (v.length < 6) return 'Min 6 chars';
                                 return null;
                               },

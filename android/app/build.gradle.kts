@@ -6,38 +6,43 @@ plugins {
 
 android {
     namespace = "com.example.aayu_track"
+
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"   // FIX NDK VERSION
+    ndkVersion = flutter.ndkVersion
 
     defaultConfig {
         applicationId = "com.example.aayu_track"
-        minSdk = flutter.minSdkVersion
+        // Increase minSdk to satisfy plugin requirements (health requires 26+)
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true    // REQUIRED FOR NOTIFICATIONS
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildTypes {
         release {
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
-flutter {
-    source = "../.."
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // add other implementation/compile dependencies here (keep existing plugin deps)
+}
+
+flutter {
+    source = "../.."
 }

@@ -1,7 +1,7 @@
 // lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'language_screen.dart';
-import '../main.dart'; // needed for MyAppTheme
+import '../widgets/my_app_theme.dart'; // needed for MyAppTheme
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -64,9 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: isDark ? "Enabled" : "Disabled",
               onTap: () {
                 final theme = MyAppTheme.of(context);
-                if (theme != null) {
-                  theme.toggleTheme(!isDark);
-                }
+                theme?.toggleTheme(!isDark);
                 setState(() {});
               },
             ),
@@ -154,7 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          subtitle!,
+                          subtitle,
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade600,

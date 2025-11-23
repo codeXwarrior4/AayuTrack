@@ -36,7 +36,6 @@ class _RemindersScreenState extends State<RemindersScreen>
 
   void _generateSmartSuggestions() {
     final hour = DateTime.now().hour;
-    final now = DateTime.now();
 
     final List<Map<String, dynamic>> suggestions = [];
 
@@ -215,15 +214,17 @@ class _RemindersScreenState extends State<RemindersScreen>
                               // scheduled today at chosen time
                               scheduled = DateTime(now.year, now.month, now.day,
                                   time.hour, time.minute);
-                              if (scheduled.isBefore(now))
+                              if (scheduled.isBefore(now)) {
                                 scheduled =
                                     scheduled.add(const Duration(days: 1));
+                              }
                             } else {
                               scheduled = DateTime(now.year, now.month, now.day,
                                   time.hour, time.minute);
-                              if (scheduled.isBefore(now))
+                              if (scheduled.isBefore(now)) {
                                 scheduled =
                                     scheduled.add(const Duration(days: 1));
+                              }
                             }
 
                             final id = daily
@@ -593,7 +594,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                       },
                       child: _reminderCard(r),
                     );
-                  }).toList(),
+                  }),
                   const SizedBox(height: 36),
                 ],
               ),

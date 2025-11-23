@@ -1,7 +1,9 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../theme.dart';
+
+// Theme constants used in this screen (inline because ../theme.dart is missing)
+const Color kTeal = Colors.teal;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,8 +14,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final box = Hive.box('aayutrack_box');
-
-  final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _name = TextEditingController();
   final TextEditingController _age = TextEditingController();
@@ -92,12 +92,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               "Personal Profile",
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: kTeal,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: kTeal,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 16),
-
             field(_name, "Full name", Icons.person),
             field(_age, "Age", Icons.cake),
             field(_gender, "Gender", Icons.wc),
@@ -106,7 +105,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             field(_address, "Address", Icons.home),
             field(_contact, "Emergency Contact", Icons.phone),
             field(_allergies, "Allergies", Icons.warning),
-
             const SizedBox(height: 12),
             ElevatedButton.icon(
               icon: _saving

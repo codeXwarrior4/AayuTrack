@@ -77,13 +77,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                           children: [
                             Text(
                               'Help us personalize your health experience',
-                              style: Theme.of(context).textTheme.bodyLarge
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
                                   ?.copyWith(color: Colors.grey[700]),
                             ),
                             const SizedBox(height: 10),
                             Text(
                               'What best describes you?',
-                              style: Theme.of(context).textTheme.titleLarge
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
                                   ?.copyWith(
                                     color: teal,
                                     fontWeight: FontWeight.bold,
@@ -105,7 +109,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                                 onChanged: (v) =>
                                     setState(() => _profession = v),
                               );
-                            }).toList(),
+                            }),
                           ],
                         ),
                       ),
@@ -117,7 +121,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                           children: [
                             Text(
                               'Select any chronic conditions you have:',
-                              style: Theme.of(context).textTheme.titleLarge
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
                                   ?.copyWith(
                                     color: teal,
                                     fontWeight: FontWeight.bold,

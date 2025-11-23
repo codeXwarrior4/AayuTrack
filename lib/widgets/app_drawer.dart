@@ -23,8 +23,8 @@ class AppDrawer extends StatelessWidget {
               accountName: Text(name),
               accountEmail: Text(box.get('auth_email', defaultValue: '')),
               currentAccountPicture: CircleAvatar(
-                child: const Icon(Icons.person, color: Colors.white),
                 backgroundColor: kTeal,
+                child: const Icon(Icons.person, color: Colors.white),
               ),
               decoration: BoxDecoration(color: kTeal),
             ),

@@ -1,16 +1,20 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
-// Localization + Theme
+// Localization & Theme
 import 'localization.dart';
 import 'theme.dart';
 
-// Services
+// SERVICES
 import 'services/notification_service.dart';
+import 'services/data_storage_service.dart'; // Hive Vitals Service
+import 'services/health_service.dart'; // Health Integration Service
+
+// MODELS
+import 'models/vitals_model.dart'; // Required for Hive setup
 
 // Screens
 import 'screens/landing_screen.dart';
@@ -26,28 +30,36 @@ import 'screens/settings_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/telemedicine_screen.dart';
-
+import 'screens/breathing_exercise_screen.dart';
+import 'screens/smart_watch_sync_screen.dart';
 import 'widgets/app_drawer.dart';
+import 'widgets/my_app_theme.dart';
 
-// ---------------------------------------------------------------------------
-// MAIN
-// ---------------------------------------------------------------------------
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
+
+  // >>> HIVE VITAL RECORD SETUP (REQUIRED for BP/SPO2) <<<
+  if (!Hive.isAdapterRegistered(VitalRecordAdapter().typeId)) {
+    Hive.registerAdapter(VitalRecordAdapter());
+  }
+
+  // Open required boxes
   await Hive.openBox('aayutrack_box');
   await Hive.openBox('aayutrack_reminders');
   await Hive.openBox('aayutrack_reports');
 
+  // Initialize ALL services
+  await DataStorageService().init();
   await NotificationService.init();
+
+  // Trigger reschedule separately to fix LateInitializationError (Best Practice)
+  await NotificationService.triggerReschedule();
 
   runApp(const RootApp());
 }
 
-// ---------------------------------------------------------------------------
-// ROOT APP
-// ---------------------------------------------------------------------------
 class RootApp extends StatefulWidget {
   const RootApp({super.key});
   @override
@@ -110,6 +122,7 @@ class _RootAppState extends State<RootApp> {
 
     return MyAppTheme(
       toggleTheme: _toggleTheme,
+      changeLocale: _changeLocale,
       child: MaterialApp(
         title: "AayuTrack",
         debugShowCheckedModeBanner: false,
@@ -137,22 +150,21 @@ class _RootAppState extends State<RootApp> {
           '/onboarding': (_) => const OnboardingFlow(),
           '/dashboard': (_) => const MainScaffold(),
           '/reminders': (_) => const RemindersScreen(),
-          '/ai': (_) => const AiCheckupScreen(),
+          '/ai': (_) => const AICheckupPage(),
           '/profile': (_) => const ProfileScreen(),
           '/settings': (_) => const SettingsScreen(),
           '/reports': (_) => const ReportsScreen(),
           '/emergency': (_) => const EmergencyScreen(),
           '/telemedicine': (_) => const TelemedicineScreen(),
           '/language': (_) => LanguageScreen(onChangedLocale: _changeLocale),
+          '/smartwatch': (_) => const SmartwatchSyncPage(),
+          '/breathing': (_) => const BreathingExerciseScreen(),
         },
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// FIRST SCREEN DECIDER
-// ---------------------------------------------------------------------------
 class RootDecider extends StatefulWidget {
   const RootDecider({super.key});
   @override
@@ -194,8 +206,6 @@ class _RootDeciderState extends State<RootDecider> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// MainScaffold (paste into main.dart, replace older MainScaffold)
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
   @override
@@ -203,15 +213,13 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
-  int _index = 0;
-
-  // pages are widgets (not full Scaffolds)
-  final pages = const [
-    DashboardScreen(),
-    AiCheckupScreen(),
-    RemindersScreen(),
-    ProfileScreen(),
-    SettingsScreen(),
+  final pages = [
+    const DashboardScreen(),
+    const AICheckupPage(),
+    const RemindersScreen(),
+    const ProfileScreen(),
+    const SettingsScreen(),
+    const SmartwatchSyncPage(),
   ];
 
   final titles = const [
@@ -220,12 +228,14 @@ class _MainScaffoldState extends State<MainScaffold> {
     'Reminders',
     'Profile',
     'Settings',
+    'Smartwatch',
   ];
+
+  int _index = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // top-level appBar (shows title and left menu)
       appBar: AppBar(
         title: Text(titles[_index]),
         centerTitle: true,
@@ -236,22 +246,16 @@ class _MainScaffoldState extends State<MainScaffold> {
           ),
         ),
         actions: [
-          // optional right-side quick action (keeps parity with your earlier screenshot)
           IconButton(
             icon: const Icon(Icons.more_vert),
             onPressed: () {},
           ),
         ],
       ),
-
-      // ONE top-level drawer used by entire app
       drawer: const AppDrawer(),
-
-      // body shows the selected page (widgets inside will not have their own AppBar/Drawer)
       body: SafeArea(
         child: pages[_index],
       ),
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -266,23 +270,12 @@ class _MainScaffoldState extends State<MainScaffold> {
               icon: Icon(Icons.person_outline), label: 'Profile'),
           NavigationDestination(
               icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          NavigationDestination(
+              icon: Icon(Icons.watch_outlined), label: 'Smartwatch'),
         ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// THEME WRAPPER
-// ---------------------------------------------------------------------------
-class MyAppTheme extends InheritedWidget {
-  final void Function(bool dark) toggleTheme;
-  const MyAppTheme(
-      {super.key, required this.toggleTheme, required super.child});
-
-  static MyAppTheme? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<MyAppTheme>();
-
-  @override
-  bool updateShouldNotify(covariant InheritedWidget oldWidget) => false;
-}
+// `MyAppTheme` moved to `lib/widgets/my_app_theme.dart` to avoid circular imports.

@@ -128,7 +128,6 @@ class _AICheckupPageState extends State<AICheckupPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
 
     Color severityColor = colorScheme.primary;
     if (_severity.contains("Urgent")) {
@@ -149,7 +148,6 @@ class _AICheckupPageState extends State<AICheckupPage> {
                 style: theme.textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
-
               TextField(
                 controller: _symptomController,
                 decoration: InputDecoration(
@@ -163,7 +161,6 @@ class _AICheckupPageState extends State<AICheckupPage> {
                 maxLines: 4,
               ),
               const SizedBox(height: 16),
-
               Row(
                 children: [
                   Expanded(
@@ -190,7 +187,6 @@ class _AICheckupPageState extends State<AICheckupPage> {
                 label: const Text("Export PDF"),
               ),
               const SizedBox(height: 24),
-
               if (_loading)
                 const Center(child: CircularProgressIndicator())
               else if (_result.isNotEmpty)
@@ -199,7 +195,8 @@ class _AICheckupPageState extends State<AICheckupPage> {
                   decoration: BoxDecoration(
                     color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
+                    border:
+                        Border.all(color: colorScheme.primary.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +219,8 @@ class _AICheckupPageState extends State<AICheckupPage> {
                       const SizedBox(height: 8),
                       MarkdownBody(
                         data: _result,
-                        styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                        styleSheet:
+                            MarkdownStyleSheet.fromTheme(theme).copyWith(
                           p: theme.textTheme.bodyMedium,
                         ),
                       ),

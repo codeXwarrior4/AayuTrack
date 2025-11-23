@@ -42,6 +42,33 @@ class AppLocalizations {
 
   /// Get localized value for key; fallback if provided
   String t(String key, [String? fallback]) => _strings[key] ?? fallback ?? key;
+
+  // ---------------------------
+  // AI Checkup + Language keys
+  // ---------------------------
+  String get ai_health_checkup => t('ai_health_checkup');
+  String get select_language => t('select_language');
+  String get describe_symptoms => t('describe_symptoms');
+  String get speak => t('speak');
+  String get stop => t('stop');
+  String get analyze => t('analyze');
+  String get ai_diagnosis => t('ai_diagnosis');
+  String get analyzing => t('analyzing');
+
+  // Languages
+  String get english => t('english');
+  String get hindi => t('hindi');
+  String get kannada => t('kannada');
+  String get marathi => t('marathi');
+
+  // Main app labels
+  String get dashboard => t('dashboard');
+  String get reminders => t('reminders');
+  String get profile => t('profile');
+  String get settings => t('settings');
+  String get smartwatch => t('smartwatch');
+  String get breathingExercise => t('breathing_exercise');
+  String get breathingTapToStart => t('breathing_tap_to_start');
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

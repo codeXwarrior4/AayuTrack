@@ -1,4 +1,3 @@
-// lib/screens/dashboard_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -7,9 +6,14 @@ import 'package:intl/intl.dart';
 
 import '../services/notification_service.dart';
 import '../services/pdf_service.dart';
+import '../services/data_storage_service.dart';
+import '../services/health_service.dart';
+import '../models/vitals_model.dart';
 import '../widgets/stat_card.dart';
-import '../widgets/streak_badge.dart';
 import '../theme.dart';
+import '../localization.dart';
+import 'breathing_exercise_screen.dart';
+import '../widgets/breathing_animation.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,8 +23,11 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
-  late final Box _box;
+  final Box _box = Hive.box('aayutrack_box');
+  final DataStorageService _storageService = DataStorageService();
+  final HealthService _healthService = HealthService();
   final FlutterTts _tts = FlutterTts();
+
   bool _loading = true;
 
   Map<String, dynamic> profile = {};
@@ -29,11 +36,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _streakSteps = 0;
   int _streakHydration = 0;
 
-  int _steps = 2500;
-  int _heartRate = 78;
-  int _hydration = 1300;
-
   late final AnimationController _animController;
+  Timer? _syncTimer;
 
   @override
   void initState() {
@@ -45,52 +49,81 @@ class _DashboardScreenState extends State<DashboardScreen>
     _initialize();
   }
 
-  Future<void> _initialize() async {
-    // Ensure the box is opened in main; here we just read it
-    _box = Hive.box('aayutrack_box');
-    await NotificationService.init();
-    await _loadData();
-  }
-
   @override
   void dispose() {
+    _syncTimer?.cancel();
     _animController.dispose();
     _tts.stop();
     super.dispose();
   }
 
+  Future<void> _initialize() async {
+    await _loadData();
+
+    await _healthService.requestPermissions();
+    await _healthService.syncAllVitals();
+
+    _syncTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      _healthService.syncAllVitals();
+    });
+  }
+
+  /// Translator helper
+  String tr(BuildContext ctx, String key, [Map<String, String>? params]) {
+    final loc = AppLocalizations.of(ctx);
+    String s = loc?.t(key) ?? key;
+
+    if (params != null) {
+      params.forEach((k, v) => s = s.replaceAll('{$k}', v));
+    }
+    return s;
+  }
+
   Future<void> _loadData() async {
     setState(() => _loading = true);
     await Future.delayed(const Duration(milliseconds: 120));
+
     profile = Map<String, dynamic>.from(_box.get('profile', defaultValue: {}));
+
     final rawLogs = List<Map<dynamic, dynamic>>.from(
       _box.get('med_logs', defaultValue: []),
     );
     _medLogs = rawLogs.map((e) => Map<String, dynamic>.from(e)).toList();
 
-    _streakMedication = (_box.get('streak_med', defaultValue: 0) as int);
-    _streakSteps = (_box.get('streak_steps', defaultValue: 0) as int);
-    _streakHydration = (_box.get('streak_hydration', defaultValue: 0) as int);
+    _streakMedication = _box.get('streak_med', defaultValue: 0);
+    _streakSteps = _box.get('streak_steps', defaultValue: 0);
+    _streakHydration = _box.get('streak_hydration', defaultValue: 0);
 
     _animController.forward();
+
     setState(() => _loading = false);
   }
 
   Future<void> _remindNow() async {
-    final name = profile['name'] ?? 'User';
-    final msg =
-        'Hello $name. This is AayuTrack reminder. Please take your medicine and stay hydrated.';
+    final name = profile['name'] ?? tr(context, 'user');
+    final msg = tr(context, 'reminderMessage', {'name': name});
+
     try {
-      await _tts.setLanguage('en-IN');
+      final langCode = Localizations.localeOf(context).languageCode;
+      final ttsLang = switch (langCode) {
+        'hi' => 'hi-IN',
+        'mr' => 'mr-IN',
+        'kn' => 'kn-IN',
+        _ => 'en-IN',
+      };
+
+      await _tts.setLanguage(ttsLang);
       await _tts.setSpeechRate(0.9);
       await _tts.speak(msg);
+
       await NotificationService.showInstant(
-        title: 'AayuTrack Reminder',
+        title: tr(context, 'notifReminderTitle'),
         body: msg,
       );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Voice reminder sent!')),
+          SnackBar(content: Text(tr(context, 'voiceReminderSent'))),
         );
       }
     } catch (e) {
@@ -99,6 +132,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _generateQuickReport() async {
+    final VitalRecord currentVitals = _storageService.getTodayRecord();
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -108,29 +143,36 @@ class _DashboardScreenState extends State<DashboardScreen>
         content: Center(child: CircularProgressIndicator()),
       ),
     );
+
     try {
-      final name = profile['name'] ?? 'User';
+      final name = profile['name'] ?? tr(context, 'user');
       final date = DateFormat.yMMMd().add_jm().format(DateTime.now());
+      final localeCode = Localizations.localeOf(context).languageCode;
+
       await PdfService.generateCheckupReport(
         patientName: name,
         dateTime: date,
-        symptom: 'Daily health stats summary',
-        diagnosis:
-            'Steps: $_steps • Heart Rate: $_heartRate bpm • Water: $_hydration ml\n\nStay consistent!',
-        lang: 'en',
+        symptom: tr(context, 'reportSymptom'),
+        diagnosis: "${tr(context, 'steps')}: ${currentVitals.steps} • "
+            "${tr(context, 'heartRate')}: ${currentVitals.heartRate.toInt()} bpm • "
+            "${tr(context, 'hydration')}: ${currentVitals.hydration.toInt()} ml\n"
+            "BP: ${currentVitals.bpSystolic}/${currentVitals.bpDiastolic} mmHg • "
+            "SpO2: ${currentVitals.spo2.toStringAsFixed(1)}%"
+            "\n\n${tr(context, 'stayConsistent')}",
+        lang: localeCode,
       );
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF generated')),
+          SnackBar(content: Text(tr(context, 'pdfGenerated'))),
         );
       }
     } catch (e) {
       Navigator.pop(context);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Report failed: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${tr(context, 'reportFailed')}: $e')),
+      );
     }
   }
 
@@ -138,12 +180,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     final todayKey = 'last_steps_date';
     final last = _box.get(todayKey);
     final todayStr = DateTime.now().toIso8601String().split('T').first;
+
     if (last != todayStr && amount >= 1000) {
       _streakSteps++;
       await _box.put('streak_steps', _streakSteps);
       await _box.put(todayKey, todayStr);
     }
-    _steps += amount;
+
+    await _storageService.updateSteps(amount);
     await _loadData();
   }
 
@@ -151,31 +195,37 @@ class _DashboardScreenState extends State<DashboardScreen>
     final todayKey = 'last_hydration_date';
     final last = _box.get(todayKey);
     final todayStr = DateTime.now().toIso8601String().split('T').first;
+
     if (last != todayStr && amountMl >= 200) {
       _streakHydration++;
       await _box.put('streak_hydration', _streakHydration);
       await _box.put(todayKey, todayStr);
     }
-    _hydration += amountMl;
+
+    await _storageService.updateHydration(amountMl);
     await _loadData();
   }
 
   Future<void> _toggleMed(Map<String, dynamic> m, bool value) async {
     m['taken'] = value;
     final logs = List<Map<dynamic, dynamic>>.from(
-        _box.get('med_logs', defaultValue: []));
+      _box.get('med_logs', defaultValue: []),
+    );
+
     final idx = logs.indexWhere((e) => e['id'] == m['id']);
     if (idx >= 0) {
       logs[idx] = m;
     } else {
       logs.add(m);
     }
+
     await _box.put('med_logs', logs);
     await _loadData();
   }
 
   Widget _buildHeader() {
-    final name = profile['name'] ?? 'Welcome';
+    final name = profile['name'] ?? tr(context, 'welcome');
+
     return Row(
       children: [
         Container(
@@ -192,7 +242,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Hello,', style: Theme.of(context).textTheme.bodyMedium),
+              Text(tr(context, 'hello'),
+                  style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 2),
               Text(name,
                   style: Theme.of(context)
@@ -201,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
-                'Stay consistent • Private • Offline',
+                tr(context, 'tagline'),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
@@ -215,33 +266,43 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// Responsive stats row:
-  /// - On narrow screens: horizontal scrollable row
-  /// - On normal/wide: three cards expanded in a row
-  Widget _buildStats() {
-    // fixed height for the stat area to avoid vertical overflow from child internals
+  Widget _buildStats(VitalRecord vitals) {
     const double statsHeight = 120;
 
     final stats = [
       _StatBox(
         child: StatCard(
-          title: 'Steps',
-          value: '$_steps',
+          title: tr(context, 'steps'),
+          value: '${vitals.steps}',
           icon: Icons.directions_walk,
         ),
       ),
       _StatBox(
         child: StatCard(
-          title: 'Heart Rate',
-          value: '$_heartRate bpm',
+          title: tr(context, 'heartRate'),
+          value: '${vitals.heartRate.toInt()} bpm',
           icon: Icons.favorite,
         ),
       ),
       _StatBox(
         child: StatCard(
-          title: 'Hydration',
-          value: '$_hydration ml',
+          title: tr(context, 'hydration'),
+          value: '${vitals.hydration.toInt()} ml',
           icon: Icons.local_drink,
+        ),
+      ),
+      _StatBox(
+        child: StatCard(
+          title: tr(context, 'bpSystolic'),
+          value: '${vitals.bpSystolic} mmHg',
+          icon: Icons.monitor_heart,
+        ),
+      ),
+      _StatBox(
+        child: StatCard(
+          title: tr(context, 'spo2'),
+          value: '${vitals.spo2.toStringAsFixed(1)}%',
+          icon: Icons.bubble_chart,
         ),
       ),
     ];
@@ -250,8 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       opacity:
           CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
       child: LayoutBuilder(builder: (ctx, constraints) {
-        // if screen is narrow (e.g. phones with small width) -> use horizontal scroll
-        if (constraints.maxWidth < 380) {
+        if (constraints.maxWidth < 450) {
           return SizedBox(
             height: statsHeight,
             child: ListView.separated(
@@ -261,7 +321,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, i) {
                 return SizedBox(
-                  width: (constraints.maxWidth * 0.7).clamp(110.0, 220.0),
+                  width: (constraints.maxWidth * 0.45).clamp(110.0, 180.0),
                   child: stats[i],
                 );
               },
@@ -269,18 +329,17 @@ class _DashboardScreenState extends State<DashboardScreen>
           );
         }
 
-        // normal/wider screens: show three in a row with equal width
-        return SizedBox(
-          height: statsHeight,
-          child: Row(
-            children: [
-              Expanded(child: stats[0]),
-              const SizedBox(width: 12),
-              Expanded(child: stats[1]),
-              const SizedBox(width: 12),
-              Expanded(child: stats[2]),
-            ],
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: stats.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
           ),
+          itemBuilder: (_, i) => stats[i],
         );
       }),
     );
@@ -288,6 +347,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildMedications() {
     final meds = _medLogs.reversed.take(4).toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -298,28 +358,30 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: [
                 const Icon(Icons.medication, color: kTeal),
                 const SizedBox(width: 8),
-                Text('Medication',
-                    style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  tr(context, 'medication'),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/reminders'),
                   icon: const Icon(Icons.schedule),
-                  label: const Text('Manage'),
+                  label: Text(tr(context, 'manage')),
                 ),
               ],
             ),
             const Divider(),
             if (meds.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('No medicines logged yet.'),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(tr(context, 'noMedicines')),
               )
             else
               ...meds.map(
                 (m) => ListTile(
                   dense: true,
-                  title: Text(m['name'] ?? 'Medicine'),
-                  subtitle: Text('At ${m['time'] ?? '--'}'),
+                  title: Text(m['name'] ?? tr(context, 'medicine')),
+                  subtitle: Text("${tr(context, 'at')} ${m['time'] ?? '--'}"),
                   trailing: Checkbox(
                     value: m['taken'] == true,
                     onChanged: (v) => _toggleMed(m, v ?? false),
@@ -338,7 +400,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: ElevatedButton.icon(
             icon: const Icon(Icons.notifications_active),
-            label: const Text('Remind Now'),
+            label: Text(tr(context, 'remindNow')),
             onPressed: _remindNow,
           ),
         ),
@@ -346,11 +408,27 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: ElevatedButton.icon(
             icon: const Icon(Icons.picture_as_pdf),
-            label: const Text('Export Report'),
+            label: Text(tr(context, 'exportReport')),
             onPressed: _generateQuickReport,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBreathingCard() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: const Icon(Icons.self_improvement, color: kTeal, size: 32),
+        title: Text(
+          AppLocalizations.of(context)!.breathingExercise,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(AppLocalizations.of(context)!.breathingTapToStart),
+        onTap: () => Navigator.pushNamed(context, '/breathing'),
+      ),
     );
   }
 
@@ -359,9 +437,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Text(
-          '💧 Drink a glass of water every morning.\n'
-          '🏃‍♂️ Maintain a 30-minute walk routine.\n'
-          '💊 Take medicines on time.',
+          tr(context, 'healthTips'),
           style: const TextStyle(fontSize: 14),
         ),
       ),
@@ -372,89 +448,97 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 14),
-          _buildStats(),
-          const SizedBox(height: 14),
-          // Streak Cards
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Medication Streak\n$_streakMedication days',
-                      style: const TextStyle(fontSize: 16),
-                    ),
+    return ValueListenableBuilder<Box<VitalRecord>>(
+      valueListenable: _storageService.vitalRecordsListenable,
+      builder: (context, box, child) {
+        final currentVitals = _storageService.getTodayRecord();
+
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 14),
+              _buildStats(currentVitals),
+              const SizedBox(height: 14),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "${tr(context, 'medStreak')}\n$_streakMedication ${tr(context, 'days')}",
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/reminders'),
+                        child: Text(tr(context, 'view')),
+                      ),
+                    ],
                   ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/reminders'),
-                    child: const Text('View'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Steps Streak\n$_streakSteps days',
-                      style: const TextStyle(fontSize: 16),
-                    ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "${tr(context, 'stepsStreak')}\n$_streakSteps ${tr(context, 'days')}",
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _markSteps(1000),
+                        child: Text(tr(context, 'addSteps')),
+                      ),
+                    ],
                   ),
-                  ElevatedButton(
-                    onPressed: () => _markSteps(1000),
-                    child: const Text('Add 1000 steps'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Hydration Streak\n$_streakHydration days',
-                      style: const TextStyle(fontSize: 16),
-                    ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "${tr(context, 'hydrationStreak')}\n$_streakHydration ${tr(context, 'days')}",
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _markHydration(250),
+                        child: Text(tr(context, 'addWater')),
+                      ),
+                    ],
                   ),
-                  ElevatedButton(
-                    onPressed: () => _markHydration(250),
-                    child: const Text('Add 250 ml'),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 14),
+              _buildMedications(),
+              const SizedBox(height: 14),
+              _buildActions(),
+              const SizedBox(height: 14),
+              _buildBreathingCard(),
+              const SizedBox(height: 14),
+              _buildHealthTips(),
+              const SizedBox(height: 80),
+            ],
           ),
-          const SizedBox(height: 14),
-          _buildMedications(),
-          const SizedBox(height: 14),
-          _buildActions(),
-          const SizedBox(height: 14),
-          _buildHealthTips(),
-          const SizedBox(height: 80),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-/// Small helper that constrains stat card height so children cannot overflow vertically.
 class _StatBox extends StatelessWidget {
   final Widget child;
   const _StatBox({required this.child});

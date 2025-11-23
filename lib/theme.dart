@@ -65,10 +65,10 @@ ThemeData buildAayuTrackLightTheme() {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.white,
       indicatorColor: kMint.withOpacity(0.3),
-      labelTextStyle: MaterialStateProperty.all(
+      labelTextStyle: WidgetStateProperty.all(
         const TextStyle(color: Colors.black87),
       ),
-      iconTheme: MaterialStateProperty.all(
+      iconTheme: WidgetStateProperty.all(
         const IconThemeData(color: Colors.black87),
       ),
     ),
@@ -135,10 +135,10 @@ ThemeData buildAayuTrackDarkTheme() {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: const Color(0xFF1A1A1A),
       indicatorColor: kMint.withOpacity(0.25),
-      labelTextStyle: MaterialStateProperty.all(
+      labelTextStyle: WidgetStateProperty.all(
         const TextStyle(color: Colors.white70),
       ),
-      iconTheme: MaterialStateProperty.all(
+      iconTheme: WidgetStateProperty.all(
         const IconThemeData(color: Colors.white70),
       ),
     ),

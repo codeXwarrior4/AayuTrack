@@ -1,153 +1,54 @@
-// lib/screens/ai_checkup_screen.dart
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:intl/intl.dart';
-import '../services/pdf_service.dart';
-import '../theme.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 
-class AiCheckupScreen extends StatefulWidget {
-  const AiCheckupScreen({super.key});
+import '../services/gemini_service.dart';
+
+class AICheckupPage extends StatefulWidget {
+  const AICheckupPage({super.key});
 
   @override
-  State<AiCheckupScreen> createState() => _AiCheckupScreenState();
+  State<AICheckupPage> createState() => _AICheckupPageState();
 }
 
-class _AiCheckupScreenState extends State<AiCheckupScreen>
-    with SingleTickerProviderStateMixin {
-  final TextEditingController _symptomController = TextEditingController();
-  final FlutterTts _tts = FlutterTts();
-  final Box box = Hive.box('aayutrack_box');
+class _AICheckupPageState extends State<AICheckupPage> {
+  final TextEditingController _controller = TextEditingController();
+  final SpeechToText _speech = SpeechToText();
 
-  String _selectedLang = 'en';
-  String? _aiResult;
-  bool _isAnalyzing = false;
-  bool _showResult = false;
+  bool _isListening = false;
+  String _selectedLang = "en-IN";
+  String _aiResponse = "";
 
-  @override
-  void dispose() {
-    _symptomController.dispose();
-    _tts.stop();
-    super.dispose();
-  }
+  Future<void> startListening() async {
+    bool available = await _speech.initialize();
+    if (!available) return;
 
-  Future<void> _analyzeSymptoms() async {
-    final input = _symptomController.text.trim();
-    if (input.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Enter symptoms first.")));
-      return;
-    }
+    setState(() => _isListening = true);
 
-    setState(() {
-      _isAnalyzing = true;
-      _showResult = false;
-      _aiResult = null;
-    });
-
-    await Future.delayed(const Duration(seconds: 2));
-    final result = _generateMockDiagnosis(input);
-
-    setState(() {
-      _aiResult = result;
-      _isAnalyzing = false;
-      _showResult = true;
-    });
-
-    _speak(result);
-    _saveCheckup(input, result);
-  }
-
-  Future<void> _speak(String text) async {
-    await _tts.setLanguage(
-      _selectedLang == 'en'
-          ? 'en-IN'
-          : _selectedLang == 'hi'
-          ? 'hi-IN'
-          : 'mr-IN',
-    );
-    await _tts.speak(text);
-  }
-
-  void _saveCheckup(String symptom, String result) {
-    final history = List<Map>.from(
-      box.get('checkup_history', defaultValue: []),
-    );
-    history.add({
-      'symptom': symptom,
-      'result': result,
-      'time': DateTime.now().toIso8601String(),
-      'lang': _selectedLang,
-    });
-
-    if (history.length > 10) history.removeAt(0);
-    box.put('checkup_history', history);
-  }
-
-  String _generateMockDiagnosis(String symptom) {
-    final random = Random();
-    final conditions = [
-      {
-        'name': 'Mild Cold',
-        'severity': 1,
-        'advice': 'Drink warm fluids and take rest.',
+    await _speech.listen(
+      localeId: _selectedLang,
+      onResult: (SpeechRecognitionResult result) {
+        setState(() {
+          _controller.text = result.recognizedWords;
+        });
       },
-      {
-        'name': 'Dehydration',
-        'severity': 2,
-        'advice': 'Increase water intake.',
-      },
-      {
-        'name': 'Stress / Fatigue',
-        'severity': 0,
-        'advice': 'Sleep well & reduce screen time.',
-      },
-      {
-        'name': 'Headache',
-        'severity': 1,
-        'advice': 'take rest and compress on your forehead',
-      }
-    ];
-
-    final pick = conditions[random.nextInt(conditions.length)];
-    final severity = pick['severity'] as int;
-    final emoji = ['🙂', '😐', '😷'][severity];
-
-    return "🩺 Condition: ${pick['name']} $emoji\n\n"
-        "Severity: ${['Low', 'Medium', 'High'][severity]}\n\n"
-        "Advice: ${pick['advice']}";
+    );
   }
 
-  Future<void> _downloadPdf() async {
-    if (_aiResult == null) return;
-
-    await PdfService.generateCheckupReport(
-      patientName: "User",
-      dateTime: DateFormat.yMMMd().add_jm().format(DateTime.now()),
-      symptom: _symptomController.text.trim(),
-      diagnosis: _aiResult!,
-      lang: _selectedLang,
-    );
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("PDF saved in Downloads.")));
+  Future<void> stopListening() async {
+    await _speech.stop();
+    setState(() => _isListening = false);
   }
 
-  Widget _langButton(String label, String code) {
-    final active = _selectedLang == code;
-    return Expanded(
-      child: ElevatedButton(
-        onPressed: () => setState(() => _selectedLang = code),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: active ? kTeal : Colors.grey.shade300,
-          foregroundColor: active ? Colors.white : Colors.black,
-        ),
-        child: Text(label),
-      ),
-    );
+  Future<void> runCheckup() async {
+    final input = _controller.text.trim();
+    if (input.isEmpty) return;
+
+    setState(() => _aiResponse = "Analyzing... please wait");
+
+    final response = await GeminiService.analyzeSymptoms(input, _selectedLang);
+
+    setState(() => _aiResponse = response);
   }
 
   @override
@@ -156,82 +57,57 @@ class _AiCheckupScreenState extends State<AiCheckupScreen>
       appBar: AppBar(title: const Text("AI Health Checkup")),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: ListView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.smart_toy,
-              size: 140,
-              color: kTeal,
-            ), // replacing doctor animation
-            const SizedBox(height: 16),
-
+            const Text("Select Language:", style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            DropdownButton<String>(
+              value: _selectedLang,
+              items: const [
+                DropdownMenuItem(
+                    value: "en-IN", child: Text("English (India)")),
+                DropdownMenuItem(value: "hi-IN", child: Text("Hindi")),
+                DropdownMenuItem(value: "mr-IN", child: Text("Marathi")),
+              ],
+              onChanged: (v) => setState(() => _selectedLang = v!),
+            ),
+            const SizedBox(height: 20),
             TextField(
-              controller: _symptomController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: "Describe your symptoms...",
-                prefixIcon: const Icon(Icons.healing),
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+              controller: _controller,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: "Describe your symptoms",
+                border: OutlineInputBorder(),
               ),
             ),
-
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 10),
             Row(
               children: [
-                _langButton("English", "en"),
-                const SizedBox(width: 6),
-                _langButton("हिंदी", "hi"),
-                const SizedBox(width: 6),
-                _langButton("मराठी", "mr"),
+                ElevatedButton.icon(
+                  onPressed: _isListening ? stopListening : startListening,
+                  icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
+                  label: Text(_isListening ? "Stop" : "Speak"),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: runCheckup,
+                  child: const Text("Analyze"),
+                ),
               ],
             ),
-
-            const SizedBox(height: 16),
-
-            ElevatedButton.icon(
-              icon: const Icon(Icons.medical_services),
-              label: const Text("Analyze Symptoms"),
-              onPressed: _isAnalyzing ? null : _analyzeSymptoms,
-            ),
-
             const SizedBox(height: 20),
-
-            if (_isAnalyzing)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(color: kTeal),
+            const Text("AI Diagnosis:",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  _aiResponse,
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
-
-            if (_showResult && _aiResult != null)
-              Column(
-                children: [
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        _aiResult!,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.picture_as_pdf),
-                    label: const Text("Download Report"),
-                    onPressed: _downloadPdf,
-                  ),
-                ],
-              ),
+            ),
           ],
         ),
       ),
