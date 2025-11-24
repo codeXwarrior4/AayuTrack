@@ -186,6 +186,11 @@ For academic collaboration or technical queries, please contact the CodeXwarrior
 * **Reports & PDF Export Screen** – Auto-generated health summaries
 * **Breathing Exercise Module** – Guided wellness animations
 
+https://github.com/codeXwarrior4/AayuTrack/blob/main/images/ai_checkup.png.jpeg
+https://github.com/codeXwarrior4/AayuTrack/blob/main/images/menu.png.jpeg
+https://github.com/codeXwarrior4/AayuTrack/blob/main/images/dashboard.png.jpeg
+https://github.com/codeXwarrior4/AayuTrack/blob/main/images/registration.png.jpeg
+https://github.com/codeXwarrior4/AayuTrack/blob/main/images/reminders.png.jpeg
 
 
 
