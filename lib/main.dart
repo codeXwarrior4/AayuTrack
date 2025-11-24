@@ -10,11 +10,10 @@ import 'theme.dart';
 
 // SERVICES
 import 'services/notification_service.dart';
-import 'services/data_storage_service.dart'; // Hive Vitals Service
-import 'services/health_service.dart'; // Health Integration Service
+import 'services/data_storage_service.dart';
 
 // MODELS
-import 'models/vitals_model.dart'; // Required for Hive setup
+import 'models/vitals_model.dart';
 
 // Screens
 import 'screens/landing_screen.dart';
@@ -32,29 +31,24 @@ import 'screens/emergency_screen.dart';
 import 'screens/telemedicine_screen.dart';
 import 'screens/breathing_exercise_screen.dart';
 import 'screens/smart_watch_sync_screen.dart';
+import 'screens/progress_screen.dart';
 import 'widgets/app_drawer.dart';
-import 'widgets/my_app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
 
-  // >>> HIVE VITAL RECORD SETUP (REQUIRED for BP/SPO2) <<<
   if (!Hive.isAdapterRegistered(VitalRecordAdapter().typeId)) {
     Hive.registerAdapter(VitalRecordAdapter());
   }
 
-  // Open required boxes
   await Hive.openBox('aayutrack_box');
   await Hive.openBox('aayutrack_reminders');
   await Hive.openBox('aayutrack_reports');
 
-  // Initialize ALL services
   await DataStorageService().init();
   await NotificationService.init();
-
-  // Trigger reschedule separately to fix LateInitializationError (Best Practice)
   await NotificationService.triggerReschedule();
 
   runApp(const RootApp());
@@ -109,7 +103,7 @@ class _RootAppState extends State<RootApp> {
   void _toggleTheme(bool dark) {
     _darkMode = dark;
     box.put('darkMode', dark);
-    setState(() {});
+    setState(() {}); // ✅ Forces rebuild so theme updates instantly
   }
 
   @override
@@ -121,6 +115,7 @@ class _RootAppState extends State<RootApp> {
     }
 
     return MyAppTheme(
+      isDarkMode: _darkMode, // ✅ ADDED
       toggleTheme: _toggleTheme,
       changeLocale: _changeLocale,
       child: MaterialApp(
@@ -159,11 +154,14 @@ class _RootAppState extends State<RootApp> {
           '/language': (_) => LanguageScreen(onChangedLocale: _changeLocale),
           '/smartwatch': (_) => const SmartwatchSyncPage(),
           '/breathing': (_) => const BreathingExerciseScreen(),
+          '/progress': (_) => const ProgressScreen(),
         },
       ),
     );
   }
 }
+
+/* ---------------- ROOT DECIDER ---------------- */
 
 class RootDecider extends StatefulWidget {
   const RootDecider({super.key});
@@ -206,6 +204,8 @@ class _RootDeciderState extends State<RootDecider> {
   }
 }
 
+/* ---------------- MAIN SCAFFOLD ---------------- */
+
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
   @override
@@ -213,13 +213,12 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
-  final pages = [
-    const DashboardScreen(),
-    const AICheckupPage(),
-    const RemindersScreen(),
-    const ProfileScreen(),
-    const SettingsScreen(),
-    const SmartwatchSyncPage(),
+  final pages = const [
+    DashboardScreen(),
+    AICheckupPage(),
+    RemindersScreen(),
+    ProfileScreen(),
+    SettingsScreen(),
   ];
 
   final titles = const [
@@ -228,7 +227,6 @@ class _MainScaffoldState extends State<MainScaffold> {
     'Reminders',
     'Profile',
     'Settings',
-    'Smartwatch',
   ];
 
   int _index = 0;
@@ -245,17 +243,9 @@ class _MainScaffoldState extends State<MainScaffold> {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-          ),
-        ],
       ),
       drawer: const AppDrawer(),
-      body: SafeArea(
-        child: pages[_index],
-      ),
+      body: SafeArea(child: pages[_index]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -270,12 +260,33 @@ class _MainScaffoldState extends State<MainScaffold> {
               icon: Icon(Icons.person_outline), label: 'Profile'),
           NavigationDestination(
               icon: Icon(Icons.settings_outlined), label: 'Settings'),
-          NavigationDestination(
-              icon: Icon(Icons.watch_outlined), label: 'Smartwatch'),
         ],
       ),
     );
   }
 }
 
-// `MyAppTheme` moved to `lib/widgets/my_app_theme.dart` to avoid circular imports.
+/* ---------------- FIXED INHERITED THEME ---------------- */
+
+class MyAppTheme extends InheritedWidget {
+  final bool isDarkMode;
+  final void Function(bool dark) toggleTheme;
+  final void Function(Locale? locale) changeLocale;
+
+  const MyAppTheme({
+    super.key,
+    required this.isDarkMode,
+    required this.toggleTheme,
+    required this.changeLocale,
+    required super.child,
+  });
+
+  static MyAppTheme? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MyAppTheme>();
+
+  @override
+  bool updateShouldNotify(MyAppTheme oldWidget) {
+    // ✅ THIS WAS YOUR MAIN BUG
+    return isDarkMode != oldWidget.isDarkMode;
+  }
+}

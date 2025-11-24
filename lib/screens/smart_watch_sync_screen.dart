@@ -13,7 +13,7 @@ class SmartwatchSyncPage extends StatefulWidget {
 class _SmartwatchSyncPageState extends State<SmartwatchSyncPage> {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
 
-  List<DiscoveredDevice> _devices = [];
+  final List<DiscoveredDevice> _devices = [];
   String? _connectedDeviceId;
 
   int _steps = 0;

@@ -16,10 +16,7 @@ class HealthService implements BaseHealthService {
   // Factory constructor: The only way to get the instance
   factory HealthService() {
     // If the platform service hasn't been instantiated yet, do it now.
-    if (_platformServiceInstance == null) {
-      // Instantiate the platform-specific implementation (imported conditionally)
-      _platformServiceInstance = HealthPlatformService();
-    }
+    _platformServiceInstance ??= HealthPlatformService();
     return _instance;
   }
 

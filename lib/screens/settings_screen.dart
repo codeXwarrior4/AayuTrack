@@ -1,7 +1,7 @@
-// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
+import '../main.dart';
 import 'language_screen.dart';
-import '../widgets/my_app_theme.dart'; // needed for MyAppTheme
+import '../localization.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,28 +16,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context);
 
     return Scaffold(
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Page Title
             Padding(
               padding: const EdgeInsets.only(bottom: 10, top: 5),
               child: Text(
-                "Settings",
+                loc?.settings ?? "Settings",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
               ),
             ),
 
-            // 🌐 LANGUAGE CARD
+            // 🌐 LANGUAGE
             _buildSettingsCard(
               icon: Icons.language,
               iconColor: Colors.teal,
-              title: "Language",
+              title: loc?.select_language ?? "Language",
               subtitle: _currentLanguageName,
               onTap: () async {
                 await Navigator.push(
@@ -56,12 +56,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
 
-            // 🌙 DARK MODE TOGGLE (NEW)
+            // 🌙 DARK MODE
             _buildSettingsCard(
               icon: Icons.dark_mode_outlined,
               iconColor: Colors.deepPurple,
-              title: "Dark Mode",
-              subtitle: isDark ? "Enabled" : "Disabled",
+              title: loc?.t('dark_mode', 'Dark Mode') ?? 'Dark Mode',
+              subtitle: isDark
+                  ? loc?.t('enabled', 'Enabled') ?? 'Enabled'
+                  : loc?.t('disabled', 'Disabled') ?? 'Disabled',
               onTap: () {
                 final theme = MyAppTheme.of(context);
                 theme?.toggleTheme(!isDark);
@@ -72,9 +74,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // 🔔 Notifications
             _buildSettingsCard(
               icon: Icons.notifications_active_outlined,
-              iconColor: Colors.orange.shade600,
-              title: "Notifications",
-              subtitle: "Manage alerts & permissions",
+              iconColor: Colors.orange,
+              title:
+                  loc?.t('notifications', 'Notifications') ?? 'Notifications',
+              subtitle: loc?.t(
+                      'manage_notifications', 'Manage alerts & permissions') ??
+                  'Manage alerts & permissions',
               onTap: () {},
             ),
 
@@ -82,18 +87,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSettingsCard(
               icon: Icons.lock_outline,
               iconColor: Colors.blueGrey,
-              title: "Privacy",
-              subtitle: "Data and permissions",
+              title: loc?.t('privacy', 'Privacy') ?? 'Privacy',
+              subtitle: loc?.t('data_permissions', 'Data and permissions') ??
+                  'Data and permissions',
               onTap: () {},
             ),
 
             const SizedBox(height: 18),
 
-            // About Section
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
-                "About",
+                loc?.t('about', 'About') ?? 'About',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -103,7 +108,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSettingsCard(
               icon: Icons.info_outline,
               iconColor: Colors.indigo,
-              title: "About AayuTrack",
+              title:
+                  loc?.t('about_app', 'About AayuTrack') ?? 'About AayuTrack',
               subtitle: "Version 1.0.0",
               onTap: () {},
             ),
@@ -113,7 +119,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Helper to build clean setting card
   Widget _buildSettingsCard({
     required IconData icon,
     required Color iconColor,
@@ -145,17 +150,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                     if (subtitle != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           subtitle,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade600,
+                            color: Colors.grey,
                           ),
                         ),
                       ),
@@ -171,7 +178,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // map locale code to user-friendly name
   String _mapLanguageCode(String code) {
     switch (code) {
       case 'hi':

@@ -1,6 +1,5 @@
 name: aayu_track
 description: A comprehensive health and wellness tracker powered by AI.
-
 publish_to: "none"
 
 version: 1.0.0+1
@@ -12,50 +11,37 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # UI + Animations
   cupertino_icons: ^1.0.8
   animations: ^2.0.11
   lottie: ^3.3.2
 
-  # Health & BLE
   health: ^13.2.1
   permission_handler: ^11.3.1
   flutter_reactive_ble: ^5.4.0
-
-  # Vibration (Compatible with health + device_info_plus 12.x)
   vibration: ^3.1.4
 
-  # Markdown Viewer
   flutter_markdown: ^0.6.10
 
-  # File / PDF / Sharing
   pdf: ^3.10.7
   printing: ^5.13.1
   share_plus: ^12.0.1
   open_filex: ^4.5.0
   path_provider: ^2.1.5
 
-  # Localization + Date/Time
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
 
-  # Preferences & Storage
   shared_preferences: ^2.2.2
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
-  # Notifications
   flutter_local_notifications: ^19.5.0
 
-  # Voice
   speech_to_text: ^7.0.0
   flutter_tts: ^4.0.0
 
-  # Firebase
   firebase_core: ^4.2.1
-
-  # Gemini AI
   google_generative_ai: ^0.4.7
 
 dev_dependencies:
@@ -69,10 +55,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   lints: ^6.0.0
 
-dependency_overrides:
-  intl: ^0.20.2
-
 flutter:
+  generate: true
   uses-material-design: true
 
   assets:
@@ -80,5 +64,6 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/animations/
-    - assets/l10n/
-    - assets/translations/
+
+flutter_intl:
+  enabled: true

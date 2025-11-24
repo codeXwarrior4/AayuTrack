@@ -15,6 +15,8 @@ import '../localization.dart';
 import 'breathing_exercise_screen.dart';
 import '../widgets/breathing_animation.dart';
 
+const kTeal = Color(0xFF00A389);
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   @override
@@ -27,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   final DataStorageService _storageService = DataStorageService();
   final HealthService _healthService = HealthService();
   final FlutterTts _tts = FlutterTts();
-
   bool _loading = true;
 
   Map<String, dynamic> profile = {};
@@ -38,6 +39,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   late final AnimationController _animController;
   Timer? _syncTimer;
+
+  // Controllers for manual input modal
+  final TextEditingController _systolicController = TextEditingController();
+  final TextEditingController _diastolicController = TextEditingController();
+  final TextEditingController _spo2Controller = TextEditingController();
 
   @override
   void initState() {
@@ -54,12 +60,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     _syncTimer?.cancel();
     _animController.dispose();
     _tts.stop();
+    _systolicController.dispose();
+    _diastolicController.dispose();
+    _spo2Controller.dispose();
     super.dispose();
   }
 
   Future<void> _initialize() async {
     await _loadData();
-
     await _healthService.requestPermissions();
     await _healthService.syncAllVitals();
 
@@ -68,13 +76,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
-  /// Translator helper
+  /// Convenience translator (Localization helper)
   String tr(BuildContext ctx, String key, [Map<String, String>? params]) {
     final loc = AppLocalizations.of(ctx);
     String s = loc?.t(key) ?? key;
-
-    if (params != null) {
-      params.forEach((k, v) => s = s.replaceAll('{$k}', v));
+    if (params != null && params.isNotEmpty) {
+      params.forEach((k, v) {
+        s = s.replaceAll('{$k}', v);
+      });
     }
     return s;
   }
@@ -83,8 +92,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _loading = true);
     await Future.delayed(const Duration(milliseconds: 120));
 
+    // Load non-vitals data
     profile = Map<String, dynamic>.from(_box.get('profile', defaultValue: {}));
-
     final rawLogs = List<Map<dynamic, dynamic>>.from(
       _box.get('med_logs', defaultValue: []),
     );
@@ -95,7 +104,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     _streakHydration = _box.get('streak_hydration', defaultValue: 0);
 
     _animController.forward();
-
     setState(() => _loading = false);
   }
 
@@ -111,12 +119,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         'kn' => 'kn-IN',
         _ => 'en-IN',
       };
-
       await _tts.setLanguage(ttsLang);
       await _tts.setSpeechRate(0.9);
       await _tts.speak(msg);
-
-      await NotificationService.showInstant(
+      await NotificationService.showAlarmPopupAndNotification(
+        context: context,
         title: tr(context, 'notifReminderTitle'),
         body: msg,
       );
@@ -131,6 +138,41 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  // --- NEW: Vitals Input Modal ---
+  Future<void> _showVitalsInputModal(VitalRecord vitals) async {
+    // Clear controllers before showing modal
+    _systolicController.text =
+        vitals.bpSystolic > 0 ? vitals.bpSystolic.toString() : '';
+    _diastolicController.text =
+        vitals.bpDiastolic > 0 ? vitals.bpDiastolic.toString() : '';
+    _spo2Controller.text =
+        vitals.spo2 > 0.0 ? vitals.spo2.toStringAsFixed(1) : '';
+
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _VitalsInputModal(
+        systolicController: _systolicController,
+        diastolicController: _diastolicController,
+        spo2Controller: _spo2Controller,
+        onSave: (systolic, diastolic, spo2) async {
+          // Log BP and SpO2 to storage
+          if (systolic != null && diastolic != null) {
+            await _storageService.logBloodPressure(systolic, diastolic);
+          }
+          if (spo2 != null) {
+            await _storageService.logSpo2(spo2);
+          }
+          // Sync and reload data instantly
+          await _healthService.syncAllVitals();
+          await _loadData();
+          if (mounted) Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
   Future<void> _generateQuickReport() async {
     final VitalRecord currentVitals = _storageService.getTodayRecord();
 
@@ -143,7 +185,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         content: Center(child: CircularProgressIndicator()),
       ),
     );
-
     try {
       final name = profile['name'] ?? tr(context, 'user');
       final date = DateFormat.yMMMd().add_jm().format(DateTime.now());
@@ -153,15 +194,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         patientName: name,
         dateTime: date,
         symptom: tr(context, 'reportSymptom'),
-        diagnosis: "${tr(context, 'steps')}: ${currentVitals.steps} • "
-            "${tr(context, 'heartRate')}: ${currentVitals.heartRate.toInt()} bpm • "
-            "${tr(context, 'hydration')}: ${currentVitals.hydration.toInt()} ml\n"
-            "BP: ${currentVitals.bpSystolic}/${currentVitals.bpDiastolic} mmHg • "
-            "SpO2: ${currentVitals.spo2.toStringAsFixed(1)}%"
-            "\n\n${tr(context, 'stayConsistent')}",
+        diagnosis:
+            "${tr(context, 'steps')}: ${currentVitals.steps} • ${tr(context, 'heartRate')}: ${currentVitals.heartRate.toInt()} bpm • ${tr(context, 'hydration')}: ${currentVitals.hydration.toInt()} ml\n"
+                    "BP: ${currentVitals.bpSystolic}/${currentVitals.bpDiastolic} mmHg • SpO2: ${currentVitals.spo2.toStringAsFixed(1)}%" +
+                "\n\n${tr(context, 'stayConsistent')}",
         lang: localeCode,
       );
-
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -170,9 +208,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
     } catch (e) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${tr(context, 'reportFailed')}: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${tr(context, 'reportFailed')}: $e')));
+      }
     }
   }
 
@@ -180,13 +219,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     final todayKey = 'last_steps_date';
     final last = _box.get(todayKey);
     final todayStr = DateTime.now().toIso8601String().split('T').first;
-
     if (last != todayStr && amount >= 1000) {
       _streakSteps++;
       await _box.put('streak_steps', _streakSteps);
       await _box.put(todayKey, todayStr);
     }
-
     await _storageService.updateSteps(amount);
     await _loadData();
   }
@@ -195,13 +232,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     final todayKey = 'last_hydration_date';
     final last = _box.get(todayKey);
     final todayStr = DateTime.now().toIso8601String().split('T').first;
-
     if (last != todayStr && amountMl >= 200) {
       _streakHydration++;
       await _box.put('streak_hydration', _streakHydration);
       await _box.put(todayKey, todayStr);
     }
-
     await _storageService.updateHydration(amountMl);
     await _loadData();
   }
@@ -209,23 +244,19 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _toggleMed(Map<String, dynamic> m, bool value) async {
     m['taken'] = value;
     final logs = List<Map<dynamic, dynamic>>.from(
-      _box.get('med_logs', defaultValue: []),
-    );
-
+        _box.get('med_logs', defaultValue: []));
     final idx = logs.indexWhere((e) => e['id'] == m['id']);
     if (idx >= 0) {
       logs[idx] = m;
     } else {
       logs.add(m);
     }
-
     await _box.put('med_logs', logs);
     await _loadData();
   }
 
   Widget _buildHeader() {
     final name = profile['name'] ?? tr(context, 'welcome');
-
     return Row(
       children: [
         Container(
@@ -266,88 +297,100 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  // ----------------------------------------------------
+  // FIXED: Two-Column Grid for Vitals (Added Tap Gestures)
+  // ----------------------------------------------------
   Widget _buildStats(VitalRecord vitals) {
-    const double statsHeight = 120;
-
-    final stats = [
-      _StatBox(
-        child: StatCard(
-          title: tr(context, 'steps'),
-          value: '${vitals.steps}',
-          icon: Icons.directions_walk,
-        ),
+    // Cards that are TAPPABLE (BP/SpO2) should use a full combined value
+    final cards = [
+      _buildTappableStat(
+        vitals: vitals,
+        title: tr(context, 'steps'),
+        value: '${vitals.steps}',
+        icon: Icons.directions_walk,
+        vitalsType: 'steps',
+        isTappable: false,
       ),
-      _StatBox(
-        child: StatCard(
-          title: tr(context, 'heartRate'),
-          value: '${vitals.heartRate.toInt()} bpm',
-          icon: Icons.favorite,
-        ),
+      _buildTappableStat(
+        vitals: vitals,
+        title: tr(context, 'heartRate'),
+        value: '${vitals.heartRate.toInt()} bpm',
+        icon: Icons.favorite,
+        vitalsType: 'heartRate',
+        isTappable: false,
       ),
-      _StatBox(
-        child: StatCard(
-          title: tr(context, 'hydration'),
-          value: '${vitals.hydration.toInt()} ml',
-          icon: Icons.local_drink,
-        ),
+      _buildTappableStat(
+        vitals: vitals,
+        title: tr(context, 'hydration'),
+        value: '${vitals.hydration.toInt()} ml',
+        icon: Icons.local_drink,
+        vitalsType: 'hydration',
+        isTappable: false,
       ),
-      _StatBox(
-        child: StatCard(
-          title: tr(context, 'bpSystolic'),
-          value: '${vitals.bpSystolic} mmHg',
-          icon: Icons.monitor_heart,
-        ),
+      // BP Card: Shows combined value and is Tappable for manual entry
+      _buildTappableStat(
+        vitals: vitals,
+        title: tr(context, 'bloodPressure'), // Use a generic key now
+        value:
+            '${vitals.bpSystolic}/${vitals.bpDiastolic} mmHg', // COMBINED VALUE
+        icon: Icons.monitor_heart,
+        vitalsType: 'bloodPressure',
+        isTappable: true,
       ),
-      _StatBox(
-        child: StatCard(
-          title: tr(context, 'spo2'),
-          value: '${vitals.spo2.toStringAsFixed(1)}%',
-          icon: Icons.bubble_chart,
-        ),
+      // SpO2 Card: Tappable for manual entry
+      _buildTappableStat(
+        vitals: vitals,
+        title: tr(context, 'spo2'),
+        value: '${vitals.spo2.toStringAsFixed(1)}%',
+        icon: Icons.bubble_chart,
+        vitalsType: 'spo2',
+        isTappable: true,
       ),
     ];
 
-    return FadeTransition(
-      opacity:
-          CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
-      child: LayoutBuilder(builder: (ctx, constraints) {
-        if (constraints.maxWidth < 450) {
-          return SizedBox(
-            height: statsHeight,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: stats.length,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) {
-                return SizedBox(
-                  width: (constraints.maxWidth * 0.45).clamp(110.0, 180.0),
-                  child: stats[i],
-                );
-              },
-            ),
-          );
-        }
+    // Use a GridView to arrange them in 2 columns
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: cards.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, // 2 items per row
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.3, // FIX: Final value to eliminate overflow
+      ),
+      itemBuilder: (context, index) {
+        return cards[index];
+      },
+    );
+  }
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: stats.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.2,
-          ),
-          itemBuilder: (_, i) => stats[i],
-        );
-      }),
+  // Helper to build a StatCard that is tappable
+  Widget _buildTappableStat({
+    required VitalRecord vitals,
+    required String title,
+    required String value,
+    required IconData icon,
+    required String vitalsType,
+    required bool isTappable,
+  }) {
+    // Only show input modal for specific metrics
+    final isBPorSPO2 = vitalsType == 'bloodPressure' || vitalsType == 'spo2';
+
+    return GestureDetector(
+      onTap: isBPorSPO2 ? () => _showVitalsInputModal(vitals) : null,
+      child: StatCard(
+        title: title,
+        value: value,
+        icon: icon,
+        // Color hint for tappable items
+        color: isBPorSPO2 ? kTeal.withOpacity(0.05) : null,
+      ),
     );
   }
 
   Widget _buildMedications() {
     final meds = _medLogs.reversed.take(4).toList();
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -358,10 +401,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: [
                 const Icon(Icons.medication, color: kTeal),
                 const SizedBox(width: 8),
-                Text(
-                  tr(context, 'medication'),
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text(tr(context, 'medication'),
+                    style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/reminders'),
@@ -454,14 +495,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         final currentVitals = _storageService.getTodayRecord();
 
         return RefreshIndicator(
-          onRefresh: _loadData,
+          onRefresh: _loadData, // Reloads streaks/profile
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _buildHeader(),
               const SizedBox(height: 14),
+
+              // VITAL STATS (2-column grid)
               _buildStats(currentVitals),
               const SizedBox(height: 14),
+
+              // Streaks (These remain as 1-column full width cards)
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -526,7 +571,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               _buildMedications(),
               const SizedBox(height: 14),
               _buildActions(),
-              const SizedBox(height: 14),
               _buildBreathingCard(),
               const SizedBox(height: 14),
               _buildHealthTips(),
@@ -545,9 +589,137 @@ class _StatBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 120,
-      child: child,
+    return child;
+  }
+}
+
+// --------------------------------------------------------------------
+// NEW: Vitals Input Modal Widget (at bottom of file)
+// --------------------------------------------------------------------
+class _VitalsInputModal extends StatelessWidget {
+  final TextEditingController systolicController;
+  final TextEditingController diastolicController;
+  final TextEditingController spo2Controller;
+  final Future<void> Function(int? systolic, int? diastolic, double? spo2)
+      onSave;
+
+  const _VitalsInputModal({
+    required this.systolicController,
+    required this.diastolicController,
+    required this.spo2Controller,
+    required this.onSave,
+  });
+
+  // Helper to build a common input field
+  Widget _buildInputField(
+      TextEditingController controller, String label, String hint) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Log Manual Vitals",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const Divider(height: 30),
+
+            // BP Inputs
+            const Text("Blood Pressure (mmHg)",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInputField(
+                      systolicController, "Systolic (Top)", "e.g., 120"),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildInputField(
+                      diastolicController, "Diastolic (Bottom)", "e.g., 80"),
+                ),
+              ],
+            ),
+
+            // SpO2 Input
+            const Text("Oxygen Saturation (SpO2)",
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            _buildInputField(spo2Controller, "SpO2 (%)", "e.g., 98.5"),
+
+            // Healthy Ranges Info
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0, bottom: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Healthy Ranges:",
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                  Text("BP: < 120/80 mmHg",
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  Text("SpO2: 95% - 100%",
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+
+            // Save Button
+            ElevatedButton(
+              onPressed: () {
+                final systolic = int.tryParse(systolicController.text);
+                final diastolic = int.tryParse(diastolicController.text);
+                final spo2 = double.tryParse(spo2Controller.text);
+
+                // Basic validation (at least one field must be filled)
+                if (systolic == null && diastolic == null && spo2 == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                          "Please enter at least one valid measurement.")));
+                  return;
+                }
+
+                // Pass values to the save function (null if not entered)
+                onSave(systolic, diastolic, spo2);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kTeal,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("Log Vitals",
+                  style: TextStyle(color: Colors.white, fontSize: 18)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

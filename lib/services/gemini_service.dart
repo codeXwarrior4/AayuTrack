@@ -1,7 +1,7 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiService {
-  static const String _apiKey = "AIzaSyBUMa6KLAdfLEj2FTKbxh6lHcSGb7IAcUQ";
+  static const String _apiKey = "AIzaSyCeGLgHuKeIfuFmOkPiH0HI4N8YGVjULTc";
   static const String _model = "models/gemini-2.5-flash";
 
   static Future<String> analyzeSymptoms(String text, String lang) async {

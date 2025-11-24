@@ -1,41 +1,31 @@
-// lib/services/notification_service.dart
-
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart'; // Essential for TimeOfDay
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-/// NotificationService
-/// - Handles initialization, permission requests, channels, and scheduling.
-/// - The 'uiLocalNotificationDateInterpretation' parameter has been removed
-///   from zonedSchedule calls to ensure compatibility on Web/Chrome.
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  // MethodChannel name MUST MATCH the one in your MainActivity.kt file.
   static const MethodChannel _exactAlarmChannel =
       MethodChannel('app.channel/exact_alarms');
 
-  // ------------------------------------------------------------------
-  // INIT
-  // ------------------------------------------------------------------
+  static const String reminderBox = 'aayutrack_reminders';
+
+  // ================= INIT =================
+
   static Future<void> init() async {
-    // 1. Timezone initialization
     tz.initializeTimeZones();
-    if (!kIsWeb) {
-      tz.setLocalLocation(tz.local);
+    tz.setLocalLocation(tz.local);
+
+    if (!Hive.isBoxOpen(reminderBox)) {
+      await Hive.openBox(reminderBox);
     }
 
-    // 2. Initialize Hive (safe to call multiple times)
-    await Hive.initFlutter();
-    await Hive.openBox('aayutrack_reminders');
-
-    // 3. Platform-specific initialization settings
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -48,179 +38,145 @@ class NotificationService {
       iOS: iosInit,
     );
 
-    await _plugin.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (response) {
-        debugPrint("🔔 Notification tapped: ${response.payload}");
-      },
-    );
+    await _plugin.initialize(settings);
 
-    // 4. Create channels and request permissions
     if (!kIsWeb && Platform.isAndroid) {
-      await _createMainChannel();
-      await _createDailyChannel();
+      await _createChannels();
     }
-    await requestPermission();
 
-    // 5. Reschedule any saved reminders (critical for persistence)
+    await requestPermission();
+  }
+
+  // Called from main.dart on app start
+  static Future<void> triggerReschedule() async {
     await _rescheduleSavedReminders();
   }
 
-  // ------------------------------------------------------------------
-  // EXACT ALARM PERMISSION HELPERS (Android 12+)
-  // ------------------------------------------------------------------
-  static Future<bool> _canScheduleExactAlarms() async {
-    if (!Platform.isAndroid) return true;
-    try {
-      final can =
-          await _exactAlarmChannel.invokeMethod<bool>('canScheduleExactAlarms');
-      return can ?? false;
-    } on PlatformException catch (e) {
-      debugPrint("Exact alarm check failed: $e");
-      return false;
-    } catch (e) {
-      return false;
+  // ================= PERMISSIONS =================
+
+  static Future<void> requestPermission() async {
+    if (Platform.isAndroid) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
     }
   }
 
-  static Future<void> _requestExactAlarmsPermission() async {
+  static Future<bool> _canScheduleExact() async {
+    if (!Platform.isAndroid) return true;
+
+    try {
+      final result =
+          await _exactAlarmChannel.invokeMethod<bool>('canScheduleExactAlarms');
+      return result ?? false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<void> _requestExactPermission() async {
     if (!Platform.isAndroid) return;
+
     try {
       await _exactAlarmChannel.invokeMethod('requestExactAlarmsPermission');
-    } on PlatformException catch (e) {
-      debugPrint("Failed to open exact alarm settings: $e");
-    }
+    } catch (_) {}
   }
 
-  static Future<bool> _ensureExactAlarmPermissionOrAsk() async {
-    if (!kIsWeb && Platform.isAndroid) {
-      final can = await _canScheduleExactAlarms();
-      if (can) return true;
+  // ================= CHANNEL =================
 
-      await _requestExactAlarmsPermission();
-      return false;
-    }
-    return true;
-  }
+  static Future<void> _createChannels() async {
+    const channel = AndroidNotificationChannel(
+      'aayu_alarm',
+      'Alarm Reminders',
+      description: 'High priority alarm notifications',
+      importance: Importance.max,
+      playSound: true,
+    );
 
-  // ------------------------------------------------------------------
-  // PERMISSIONS
-  // ------------------------------------------------------------------
-  static Future<void> requestPermission() async {
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+        ?.createNotificationChannel(channel);
   }
 
-  // ------------------------------------------------------------------
-  // CREATE CHANNELS
-  // ------------------------------------------------------------------
-  static Future<void> _createMainChannel() async {
-    const channel = AndroidNotificationChannel(
-      'aayutrack_reminders',
-      'AayuTrack Health Alerts',
-      description: 'Medicine, hydration, and health alerts',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-    );
-
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await android?.createNotificationChannel(channel);
-  }
-
-  static Future<void> _createDailyChannel() async {
-    const channel = AndroidNotificationChannel(
-      'aayutrack_daily',
-      'AayuTrack Daily Reminders',
-      description: 'Daily scheduled reminders',
-      importance: Importance.max,
-      playSound: true,
-    );
-
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await android?.createNotificationChannel(channel);
-  }
-
-  static NotificationDetails _alarmDetails(String channelId, String name) {
-    return NotificationDetails(
+  static NotificationDetails _details() {
+    return const NotificationDetails(
       android: AndroidNotificationDetails(
-        channelId,
-        name,
-        channelDescription: 'AayuTrack Alerts',
+        'aayu_alarm',
+        'Alarm Reminders',
         importance: Importance.max,
-        priority: Priority.max,
+        priority: Priority.high,
+        fullScreenIntent: true,
         playSound: true,
         enableVibration: true,
         category: AndroidNotificationCategory.alarm,
-        ticker: 'AayuTrack Reminder',
-        fullScreenIntent: false,
-        icon: '@mipmap/ic_launcher',
       ),
-      iOS: const DarwinNotificationDetails(
+      iOS: DarwinNotificationDetails(
         presentAlert: true,
-        presentBadge: true,
         presentSound: true,
-        interruptionLevel: InterruptionLevel.timeSensitive,
       ),
     );
   }
 
-  // ------------------------------------------------------------------
-  // SHOW INSTANT NOTIFICATION
-  // ------------------------------------------------------------------
-  static Future<void> showInstant({
+  // ================= INSTANT ALARM + POPUP =================
+
+  static Future<void> showAlarmPopupAndNotification({
+    required BuildContext context,
     required String title,
     required String body,
-    String? payload,
   }) async {
-    await _plugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      _alarmDetails('aayutrack_reminders', "AayuTrack Health Alerts"),
-      payload: payload,
-    );
+    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    await _plugin.show(id, title, body, _details());
+
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.alarm, color: Colors.red),
+              SizedBox(width: 8),
+              Text("ALARM"),
+            ],
+          ),
+          content: Text(body),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("DISMISS"),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
-  static Future<void> showNotification({
-    required String title,
-    required String body,
-  }) async =>
-      showInstant(title: title, body: body);
+  // ================= ONE TIME SCHEDULE =================
 
-  // ------------------------------------------------------------------
-  // SCHEDULE ONE-TIME NOTIFICATION (FIXED FOR CHROME COMPATIBILITY)
-  // ------------------------------------------------------------------
   static Future<void> schedule({
     required String title,
     required String body,
     required DateTime time,
   }) async {
-    final ok = await _ensureExactAlarmPermissionOrAsk();
-    if (!ok) {
-      debugPrint("Exact alarms not permitted yet. Please grant permission.");
+    if (!await _canScheduleExact()) {
+      await _requestExactPermission();
       return;
     }
 
     final id = time.millisecondsSinceEpoch ~/ 1000;
-    final box = Hive.box('aayutrack_reminders');
+    final box = Hive.box(reminderBox);
 
     await _plugin.zonedSchedule(
       id,
       title,
       body,
       tz.TZDateTime.from(time, tz.local),
-      _alarmDetails('aayutrack_reminders', "AayuTrack Health Alerts"),
-      // Removed uiLocalNotificationDateInterpretation parameter for stability on Web/Chrome
+      _details(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
 
@@ -233,24 +189,20 @@ class NotificationService {
     });
   }
 
-  // ------------------------------------------------------------------
-  // SCHEDULE DAILY NOTIFICATION (FIXED FOR CHROME COMPATIBILITY)
-  // ------------------------------------------------------------------
+  // ================= DAILY =================
+
   static Future<void> scheduleDaily({
     required String title,
     required String body,
     required TimeOfDay time,
   }) async {
-    final ok = await _ensureExactAlarmPermissionOrAsk();
-    if (!ok) {
-      debugPrint("Exact alarms not permitted yet. Please grant permission.");
+    if (!await _canScheduleExact()) {
+      await _requestExactPermission();
       return;
     }
 
-    final id = time.hour * 100 + time.minute;
-
     final now = DateTime.now();
-    DateTime scheduled = DateTime(
+    DateTime schedule = DateTime(
       now.year,
       now.month,
       now.day,
@@ -258,19 +210,19 @@ class NotificationService {
       time.minute,
     );
 
-    if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
+    if (schedule.isBefore(now)) {
+      schedule = schedule.add(const Duration(days: 1));
     }
 
-    final box = Hive.box('aayutrack_reminders');
+    final id = time.hour * 100 + time.minute;
+    final box = Hive.box(reminderBox);
 
     await _plugin.zonedSchedule(
       id,
       title,
       body,
-      tz.TZDateTime.from(scheduled, tz.local),
-      _alarmDetails('aayutrack_daily', "AayuTrack Daily Reminders"),
-      // Removed uiLocalNotificationDateInterpretation parameter for stability on Web/Chrome
+      tz.TZDateTime.from(schedule, tz.local),
+      _details(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -285,15 +237,10 @@ class NotificationService {
     });
   }
 
-  // ------------------------------------------------------------------
-  // RESCHEDULE ON APP RESTART (CRITICAL FOR RELIABILITY)
-  // ------------------------------------------------------------------
-  static Future<void> _rescheduleSavedReminders() async {
-    // Before rescheduling, cancel all existing scheduled notifications
-    // to avoid duplicates and ensure the schedule is up-to-date.
-    await _plugin.cancelAll();
+  // ================= RESCHEDULE =================
 
-    final box = Hive.box('aayutrack_reminders');
+  static Future<void> _rescheduleSavedReminders() async {
+    final box = Hive.box(reminderBox);
 
     for (final r in box.values) {
       try {
@@ -301,49 +248,33 @@ class NotificationService {
           await scheduleDaily(
             title: r['title'],
             body: r['body'],
-            time: TimeOfDay(
-              hour: (r['hour'] ?? 8) as int,
-              minute: (r['minute'] ?? 0) as int,
-            ),
+            time: TimeOfDay(hour: r['hour'], minute: r['minute']),
           );
-        } else if (r['type'] == 'once') {
-          final t = DateTime.tryParse(r['time'] ?? '');
-          if (t != null && t.isAfter(DateTime.now())) {
+        } else {
+          final t = DateTime.parse(r['time']);
+          if (t.isAfter(DateTime.now())) {
             await schedule(
               title: r['title'],
               body: r['body'],
               time: t,
             );
-          } else {
-            // Remove expired one-time reminders
-            await box.delete(r['id']);
           }
         }
       } catch (e) {
-        debugPrint("⚠ Reschedule error for ID ${r['id']}: $e");
+        debugPrint("Reschedule error: $e");
       }
     }
   }
 
-  // Public helper for external callers to trigger rescheduling
-  static Future<void> triggerReschedule() async {
-    await _rescheduleSavedReminders();
-  }
+  // ================= CANCEL =================
 
-  // ------------------------------------------------------------------
-  // CANCEL
-  // ------------------------------------------------------------------
   static Future<void> cancel(int id) async {
     await _plugin.cancel(id);
-    final box = Hive.box('aayutrack_reminders');
-    await box.delete(id);
+    await Hive.box(reminderBox).delete(id);
   }
 
-  // ------------------------------------------------------------------
-  // CANCEL ALL NOTIFICATIONS
-  // ------------------------------------------------------------------
   static Future<void> cancelAll() async {
     await _plugin.cancelAll();
-    await Hive.box('aayutrack_reminders').clear();
+    await Hive.box(reminderBox).clear();
   }
 }

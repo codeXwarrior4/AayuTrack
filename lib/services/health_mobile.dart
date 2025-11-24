@@ -64,8 +64,9 @@ class HealthPlatformService implements BaseHealthService {
   }
 
   double? _getNumericValue(health_pkg.HealthDataPoint? data) {
-    if (data == null || data.value is! health_pkg.NumericHealthValue)
+    if (data == null || data.value is! health_pkg.NumericHealthValue) {
       return null;
+    }
     return (data.value as health_pkg.NumericHealthValue)
         .numericValue
         .toDouble();

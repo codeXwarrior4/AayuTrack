@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../main.dart';
+import '../localization.dart';
 
 class LanguageScreen extends StatelessWidget {
   final Function(Locale) onChangedLocale;
@@ -7,17 +9,19 @@ class LanguageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = MyAppTheme.of(context);
+    final loc = AppLocalizations.of(context);
+
     final languages = {
-      'en': 'English',
-      'hi': 'Hindi',
-      'kn': 'Kannada',
-      'mr': 'Marathi',
+      'en': loc?.english ?? 'English',
+      'hi': loc?.hindi ?? 'Hindi',
+      'mr': loc?.marathi ?? 'Marathi',
+      'kn': loc?.kannada ?? 'Kannada',
     };
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Language'),
-        backgroundColor: Colors.teal,
+        title: Text(loc?.select_language ?? 'Select Language'),
       ),
       body: ListView(
         children: languages.entries.map((entry) {
@@ -25,7 +29,9 @@ class LanguageScreen extends StatelessWidget {
             title: Text(entry.value),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
-              onChangedLocale(Locale(entry.key));
+              final locale = Locale(entry.key);
+              theme?.changeLocale(locale);
+              onChangedLocale(locale);
               Navigator.pop(context);
             },
           );
