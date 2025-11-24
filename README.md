@@ -1,172 +1,188 @@
-# 🌿 Aayu Track – AI Health & Wellness App
+# Aayu Track – Smart Health Monitoring & Reminder System (Prototype)
 
-## Team : CodeXWarriors
+## 👨‍💻 Developed By
 
-🎓 **Dr. D.Y. Patil Pratishthan’s College of Engineering, Salokhenagar, Kolhapur**
+**codeXwarriors**
+Dr. D.Y. Patil Pratishthan’s College of Engineering, Salokhenagar, Kolhapur
 
-🔗 **GitHub Repository:** [https://github.com/codeXwarrior4/AayuTrack](https://github.com/codeXwarrior4/AayuTrack)
+GitHub Repository: [https://github.com/codeXwarrior4/AayuTrack](https://github.com/codeXwarrior4/AayuTrack)
 
 ---
 
 ## 📌 Project Overview
 
-**Aayu Track** is a smart AI-powered health and wellness mobile application designed to help users maintain consistent healthy routines. It integrates intelligent reminders, health tracking, and AI-based suggestions to improve daily lifestyle and wellbeing.
+**AayuTrack** is a Flutter-based intelligent health monitoring and reminder system designed as an assistive digital healthcare prototype. The application integrates real-time health data tracking, smart medication reminders, and wellness guidance to improve adherence, awareness, and daily health management.
 
-The app focuses on preventive healthcare by supporting medication reminders, hydration alerts, vitals tracking, and personalized wellness insights in a simple and user-friendly interface.
-
----
-
-## 🚀 Core Features
-
-### ✅ Smart Reminder & Alarm System
-
-* High-priority alarm-style notifications
-* Medicine, hydration & routine reminders
-* Daily & one-time scheduling
-* Full-screen alarm popup design
-
-### ✅ Health Tracking
-
-* Store and monitor:
-
-  * Heart rate
-  * Blood pressure
-  * Oxygen level
-  * Daily activity
-* Historical record view
-* Hive offline storage
-
-### ✅ AI Powered Suggestions
-
-* Personalized health tips
-* Automated suggestions based on entered vitals
-* Intelligent wellness recommendations
-
-### ✅ Multi-language Support
-
-* English
-* Hindi
-* Marathi
-* Kannada
-
-### ✅ Voice-based Interaction
-
-* Text-to-Speech for alerts
-* Speech-to-Text for user input
-
-### ✅ Lightweight & Optimized Performance
-
-* Fast UI rendering
-* Offline capability
-* Efficient background scheduling
+This prototype focuses on combining preventive healthcare principles with mobile automation, providing users with actionable insights and scheduled interventions.
 
 ---
 
-## 🧠 Innovation Highlights
+## 🧠 System Architecture
 
-* Combines AI + Health Monitoring
-* Alarm-style medical alert notifications
-* Intelligent habit forming ecosystem
-* Designed for both urban & rural healthcare users
+The application follows a modular layered architecture:
 
----
+* **UI Layer:** Flutter Widgets + Material Design
+* **Logic Layer:** Services for health data processing & reminders
+* **Storage Layer:** Hive (local NoSQL database)
+* **Notification Engine:** flutter_local_notifications + Timezone scheduling
+* **External Integration:** Health APIs (Steps, Heart Rate)
 
-## 🏗️ Tech Stack
-
-| Layer         | Technology                  |
-| ------------- | --------------------------- |
-| Framework     | Flutter                     |
-| Language      | Dart                        |
-| Database      | Hive                        |
-| Notifications | Flutter Local Notifications |
-| AI Engine     | Google Generative AI        |
-| Storage       | SharedPreferences + Hive    |
-| APIs          | Health Plugin               |
-
----
-
-## 📱 Application Modules
-
-* Dashboard
-* Reminder Manager
-* Health Records
-* AI Health Assistant
-* Language Settings
-* User Profile
-
----
-
-## ⚙️ Installation & Setup
-
-```bash
-# Clone repository
-git clone https://github.com/codeXwarrior4/AayuTrack.git
-
-# Navigate to project directory
-cd AayuTrack
-
-# Install dependencies
-flutter pub get
-
-# Run application
-flutter run
+```
+User Interface
+      ↓
+State Management
+      ↓
+Services Layer
+      ↓
+Local Database (Hive)
+      ↓
+Notification & Alarm Engine
 ```
 
 ---
 
-## 📈 Current Progress
+## ⚙️ Technologies Used
 
-✅ Core Architecture
-✅ Reminder System
-✅ Health Data Storage
-✅ AI Feature Integration
-✅ UI 60% completed
-
-🔧 Remaining:
-
-* Advanced analytics
-* Cloud sync extension
-* Doctor-connect module
+* Flutter (Dart)
+* Hive Database
+* flutter_local_notifications
+* Google Health API / Device Sensors
+* PDF Generator Service
+* Timezone Scheduling
+* Android Native Exact Alarm Handling
 
 ---
 
-## 🎯 Problem Statement
+## ✅ Core Functional Modules
 
-Most individuals fail to follow consistent health routines due to lack of structured monitoring. Aayu Track provides a smart digital solution to track daily wellbeing and create sustainable healthy habits using AI and automation.
+### 1. Health Vital Monitoring
 
----
+* Steps Tracking
+* Heart Rate Monitoring
+* Hydration Logging
+* Blood Pressure (Manual + Auto)
+* SpO2 Monitoring
 
-## 🌟 Impact
+### 2. Medication Reminder System
 
-* Promotes preventive healthcare
-* Reduces missed medication
-* Assists elderly & busy professionals
-* Improves health awareness
+* One-time reminders
+* Daily recurring alarms
+* High-priority alarm notifications
+* Voice-based reminder alerts
+* Pop-up alarm interface
 
----
+### 3. Wellness Assistant
 
-## 🔮 Future Scope
+* Guided Breathing Exercises
+* Motivational Health Tips
+* Daily Habit Encouragement Engine
 
-* Wearable device integration
-* Cloud-based health history
-* AI chatbot for medical guidance
-* Hospital dashboard integration
+### 4. Reporting Engine
 
----
-
-## 👥 Team CodeXWarriors
-
-Developed with passion by students of
-**Dr. D.Y. Patil Pratishthan’s College of Engineering, Kolhapur**
-
----
-
-## 📬 Contact
-
-For collaboration or feedback:
-📧 Email: [codexwarrior4.team@gmail.com](mailto:codexwarriors.team@gmail.com)
-🌐 GitHub: [https://github.com/codeXwarrior4](https://github.com/codeXwarrior4)
+* Automated PDF Health Report
+* Time-stamped vitals history
+* Doctor consultation-ready summary
 
 ---
 
-> "Aayu Track – Your Digital Partner for a Healthier Life" 💚
+## 🔔 Notification Engine Specifications
+
+* Uses Android Exact Alarm Permission
+* Full-screen alarm popup
+* Auto-reschedule on app restart
+* Alarm channel prioritization
+* Persistent scheduling via Hive
+
+Supported modes:
+
+* Instant Alerts
+* Delayed One-time Alarms
+* Daily Fixed-Time Alarms
+
+---
+
+## 📂 Directory Structure (Simplified)
+
+```
+lib/
+ ├── services/
+ │     ├── notification_service.dart
+ │     ├── health_service.dart
+ │     ├── pdf_service.dart
+ ├── models/
+ │     ├── vitals_model.dart
+ ├── screens/
+ │     ├── dashboard_screen.dart
+ │     ├── breathing_exercise_screen.dart
+ ├── widgets/
+ │     ├── stat_card.dart
+ └── main.dart
+```
+
+---
+
+## 🚀 Application Workflow
+
+1. User opens Dashboard
+2. Real-time vitals displayed
+3. Reminder scheduling engine active
+4. Health alerts trigger
+5. Reports generated on demand
+6. Data stored securely offline
+
+---
+
+## 🔐 Security & Privacy
+
+* All data stored locally on device
+* No cloud sync in prototype phase
+* Encrypted Hive storage planned for next version
+
+---
+
+## 📈 Current Development Status
+
+✅ UI Framework Complete
+✅ Reminder Engine Stable
+✅ Health Tracking Integrated
+✅ PDF Reports Functional
+⏳ AI Recommendations (Planned)
+
+Completion Level: **60%**
+
+---
+
+## 🎯 Target Users
+
+* Elderly Patients
+* Chronic Disease Patients
+* Fitness Enthusiasts
+* Medical Students for Self Monitoring
+
+---
+
+## 📌 Future Enhancements
+
+* AI Health Prediction
+* Cloud Backup & Sync
+* Doctor Portal Integration
+* Emergency SOS Alerts
+* Multilingual Support
+
+---
+
+## 🧪 Prototype Purpose
+
+This application is developed as an academic and functional prototype showcasing modern digital healthcare automation and reminder-based intervention systems for improving patient health adherence.
+
+---
+
+## 📞 Contact
+
+codeXwarriors Team
+Dr. D.Y. Patil Pratishthan’s College of Engineering
+Kolhapur, Maharashtra
+
+---
+
+⭐ If you like this prototype, consider starring the repository!
