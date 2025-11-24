@@ -23,9 +23,9 @@ The application follows a modular layered architecture:
 
 * **UI Layer:** Flutter Widgets + Material Design
 * **Logic Layer:** Services for health data processing & reminders
-* **Storage Layer:** Hive (local NoSQL database)
+* **Storage Layer:** Hive (local NoSQL database) for prototype demo app
 * **Notification Engine:** flutter_local_notifications + Timezone scheduling
-* **External Integration:** Health APIs (Steps, Heart Rate)
+* **External Integration:** Health APIs (Steps, Heart Rate,Spo2,BP,Hydration and etc)
 
 ```
 User Interface
