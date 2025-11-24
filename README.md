@@ -186,13 +186,6 @@ For academic collaboration or technical queries, please contact the CodeXwarrior
 * **Reports & PDF Export Screen** – Auto-generated health summaries
 * **Breathing Exercise Module** – Guided wellness animations
 
-*(Add actual screenshots here by embedding images using GitHub markdown syntax)*
 
-```md
-![Dashboard](screenshots/dashboard.png)
-![AI Checkup](screenshots/ai_checkup.png)
-![Reminders](screenshots/reminders.png)
-![Reports](screenshots/reports.png)
-```
 
-> ℹ️ Create a `/screenshots` folder in your repository and place all UI images there for proper rendering on GitHub.
+
