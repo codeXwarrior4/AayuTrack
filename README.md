@@ -179,10 +179,9 @@ This application is developed as an academic and functional prototype showcasing
 
 ## 📞 Contact
 
-codeXwarriors Team
+codeXwarriors Team,
+codexwarrior4@gmail.com
 Dr. D.Y. Patil Pratishthan’s College of Engineering
 Kolhapur, Maharashtra
 
----
 
-⭐ If you like this prototype, consider starring the repository!
