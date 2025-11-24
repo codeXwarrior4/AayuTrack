@@ -120,7 +120,7 @@ flutter run
 ✅ Reminder System
 ✅ Health Data Storage
 ✅ AI Feature Integration
-✅ UI 70% completed
+✅ UI 60% completed
 
 🔧 Remaining:
 
@@ -164,7 +164,7 @@ Developed with passion by students of
 ## 📬 Contact
 
 For collaboration or feedback:
-📧 Email: [codexwarriors.team@gmail.com](mailto:codexwarriors.team@gmail.com)
+📧 Email: [codexwarrior4.team@gmail.com](mailto:codexwarriors.team@gmail.com)
 🌐 GitHub: [https://github.com/codeXwarrior4](https://github.com/codeXwarrior4)
 
 ---
