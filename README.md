@@ -7,7 +7,7 @@
 
 ---
 
-## 📌 Project Overview
+##  Project Overview
 
 AayuTrack is a smart health monitoring and wellness mobile application designed to assist users in tracking vital health metrics, managing medication reminders, analyzing health progress, and promoting healthy lifestyle habits. This project is currently developed as a functional prototype representing approximately **60–70% of the complete system**, focusing on core health tracking and reminder functionalities.
 
@@ -15,7 +15,7 @@ The application aims to bridge the gap between daily health monitoring and intel
 
 ---
 
-## 🎯 Objective
+##  Objective
 
 To create a scalable, intelligent healthcare assistant that empowers individuals to:
 
@@ -27,9 +27,9 @@ To create a scalable, intelligent healthcare assistant that empowers individuals
 
 ---
 
-## 🚀 Key Features (Implemented in Prototype)
+##  Key Features (Implemented in Prototype)
 
-### ✅ Core Functionalities
+###  Core Functionalities
 
 * Real-time Dashboard for Health Overview
 * Daily Wellness Tracking
@@ -51,7 +51,7 @@ To create a scalable, intelligent healthcare assistant that empowers individuals
 * Oxygen Saturation (SpO2)
 * Hydration Monitoring
 
-### 🔔 Reminder System
+###  Reminder System
 
 * Scheduled reminders
 * Daily recurring reminders
@@ -60,9 +60,9 @@ To create a scalable, intelligent healthcare assistant that empowers individuals
 
 ---
 
-## 🛠️ Technical Stack
+##  Technical Stack
 
-### ✅ Current Prototype Technologies
+###  Current Prototype Technologies
 
 * **Framework:** Flutter 3.35.7 (Stable Channel)
 * **Language:** Dart 3.9.2
@@ -72,7 +72,7 @@ To create a scalable, intelligent healthcare assistant that empowers individuals
 * **PDF Generation:** Custom Flutter PDF Services
 * **Platform Target:** Android
 
-### ✅ Development Environment
+###  Development Environment
 
 * Flutter SDK: 3.19.0
 * Dart SDK: 3.3.0
@@ -82,7 +82,7 @@ To create a scalable, intelligent healthcare assistant that empowers individuals
 
 ---
 
-## 🧠 Architecture Overview
+##  Architecture Overview
 
 ```
 UI Layer (Flutter Widgets)
@@ -96,7 +96,7 @@ The prototype follows a modular architecture separation for future scalability a
 
 ---
 
-## 📂 Project Structure Highlights
+##  Project Structure Highlights
 
 lib/
 ├── services/
@@ -110,37 +110,37 @@ lib/
 
 ---
 
-## 🔮 Future Scope & Upgrades
+##  Future Scope & Upgrades
 
 Currently, AayuTrack uses Hive for lightweight local storage suitable for prototyping. In future production versions, the application will be upgraded with more powerful and scalable technologies including:
 
-### 🔧 Planned Enhancements
+###  Planned Enhancements
 
-* ✅ Migration from Hive to Cloud-Based Databases (Firebase / MongoDB / PostgreSQL)
-* ✅ Real-time synchronization across devices
-* ✅ Advanced AI-powered health predictions
-* ✅ Doctor-Patient Telemedicine System
-* ✅ Secure user authentication (OAuth, JWT)
-* ✅ Health API Integration (Google Fit / Apple Health)
-* ✅ Predictive Analytics Dashboard
-* ✅ Smart Wearable Device Connectivity
-* ✅ Remote Health Monitoring System
-* ✅ Role-based user management
+*  Migration from Hive to Cloud-Based Databases (Firebase / MongoDB / PostgreSQL)
+*  Real-time synchronization across devices
+*  Advanced AI-powered health predictions
+*  Doctor-Patient Telemedicine System
+*  Secure user authentication (OAuth, JWT)
+*  Health API Integration (Google Fit / Apple Health)
+*  Predictive Analytics Dashboard
+*  Smart Wearable Device Connectivity
+*  Remote Health Monitoring System
+*  Role-based user management
 
 These upgrades will dramatically enhance performance, data security, scalability, and intelligence of the system.
 
 ---
 
-## 🧪 Prototype Status
+##  Prototype Status
 
-✅ Functional UI and core features completed
-🟡 Advanced AI features under development
-🟡 Cloud integration planned
-🔴 Full production deployment pending
+ Functional UI and core features completed
+ Advanced AI features under development
+ Cloud integration planned
+ Full production deployment pending
 
 ---
 
-## 📈 Innovation Focus
+##  Innovation Focus
 
 AayuTrack integrates modern healthcare concepts with emerging mobile technologies to deliver a preventive healthcare ecosystem focused on:
 
@@ -151,7 +151,7 @@ AayuTrack integrates modern healthcare concepts with emerging mobile technologie
 
 ---
 
-## 👨‍💻 Development Team
+##  Development Team
 
 **Team Name:** CodeXwarriors
 
@@ -159,23 +159,23 @@ From: Dr. D.Y. Patil Pratishthan’s College of Engineering, Kolhapur
 
 ---
 
-## 📜 License
+##  License
 
 This project is developed as an academic prototype and is intended for demonstration and educational purposes only. Commercial deployment is reserved for future development phases.
 
 ---
 
-## 📧 Contact
+##  Contact
 
 For academic collaboration or technical queries, please contact the CodeXwarriors development team through GitHub repository issues.
 
 ---
 
-✅ This README reflects current prototype status and outlines the roadmap for a production-ready healthcare application ecosystem.
+ This README reflects current prototype status and outlines the roadmap for a production-ready healthcare application ecosystem.
 
 ---
 
-## 📸 Screenshots
+##  Screenshots
 
 > *Hackathon Prototype Visuals*
 > The following screenshots showcase the current user interface and core functionality implemented during the hackathon phase:
