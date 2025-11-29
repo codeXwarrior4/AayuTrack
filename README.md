@@ -99,10 +99,15 @@ The prototype follows a modular architecture separation for future scalability a
 ##  Project Structure Highlights
 
 lib/
+
 ├── services/
+
 │   ├── notification_service.dart
+
 │   ├── data_storage_service.dart
+
 │   └── health_service.dart
+
 ├── models/
 ├── screens/
 ├── widgets/
